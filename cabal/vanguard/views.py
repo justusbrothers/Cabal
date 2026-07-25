@@ -1,11 +1,15 @@
-# cabal/vanguard/views.py
-
 import io
 import re
 
+from django.contrib import messages
 from django.http import HttpResponse
 from django.shortcuts import render
 from django.views import View
+
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
@@ -24,28 +28,150 @@ from .flowables import PrintableCheckbox
 from .helpers import VanguardParser
 
 
-class CabalView(View):
-    template_name = "cabal/vanguard.html"
+class LookupPacksApiView(APIView):
+    """API endpoint to look up IPNs by date and recommend available cover packs."""
+
+    permission_classes = [
+        IsAuthenticated
+    ]  # Ensures 401 response instead of 302 redirect
+
+    def post(self, request, *args, **kwargs):
+        # request.data works for BOTH JSON bodies and standard POST form data
+        lookup_date = request.data.get("lookup_date", "")
+        ipn_raw = request.data.get("ipn_list", "")
+
+        if not lookup_date:
+            return Response(
+                {"status": "error", "message": "Please select a date first."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # 1. Fetch date IPNs
+        date_ipns = VanguardParser.get_ipns_by_param_date(lookup_date)
+        if not date_ipns:
+            return Response(
+                {
+                    "status": "warning",
+                    "message": f"No IPNs found matching '{lookup_date}'.",
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        # 2. Combine IPNs
+        existing_lines = VanguardParser.parse_textarea_input(ipn_raw)
+        combined_ipns = list(dict.fromkeys(existing_lines + date_ipns))
+        updated_ipn_text = "\n".join(combined_ipns)
+
+        # 3. Generate pack recommendations strictly from input IPNs
+        recommended_packs = VanguardParser.recommend_packs_from_ipns(
+            ipn_list=combined_ipns, min_stock=1
+        )
+
+        return Response(
+            {
+                "status": "success",
+                "message": f"Found {len(recommended_packs)} pack recommendation(s).",
+                "ipn_list": updated_ipn_text,
+                "recommended_packs": recommended_packs,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class VanguardView(View):
+    template_name = "vanguard/vanguard.html"
 
     def get(self, request, *args, **kwargs):
+        # Retrieve context state
         context = {
             "ipn_list": request.session.get("active_ipn_list", ""),
             "packs": request.session.get("active_packs", ""),
             "sub_box_pulls": request.session.get("active_sub_box_pulls", ""),
+            "selected_date": request.session.get("active_lookup_date", ""),
+            "recommended_packs": request.session.get("active_recommended_packs", []),
         }
         return render(request, self.template_name, context)
 
     def post(self, request, *args, **kwargs):
+        action = request.POST.get("action", "generate_pdf")
+
+        # --- Handle Clear All Action ---
+        if action == "clear_all":
+            for key in [
+                "active_ipn_list",
+                "active_packs",
+                "active_sub_box_pulls",
+                "active_lookup_date",
+                "active_recommended_packs",
+            ]:
+                request.session.pop(key, None)
+
+            messages.info(request, "All fields cleared.")
+            return render(
+                request,
+                self.template_name,
+                {
+                    "ipn_list": "",
+                    "packs": "",
+                    "sub_box_pulls": "",
+                    "selected_date": "",
+                    "recommended_packs": [],
+                },
+            )
+
+        # Retrieve form data
         ipn_raw = request.POST.get("ipn_list", "")
         packs_raw = request.POST.get("packs", "")
         sub_pulls_raw = request.POST.get("sub_box_pulls", "")
-        action = request.POST.get("action", "generate_pdf")
+        lookup_date = request.POST.get("lookup_date", "")
 
+        recommended_packs = []
+
+        # --- Handle Date Lookup Action ---
+        if action == "lookup_by_date":
+            if not lookup_date:
+                messages.warning(request, "Please select a date first.")
+            else:
+                date_ipns = VanguardParser.get_ipns_by_param_date(lookup_date)
+                if date_ipns:
+                    existing_lines = VanguardParser.parse_textarea_input(ipn_raw)
+                    combined_ipns = list(dict.fromkeys(existing_lines + date_ipns))
+                    ipn_raw = "\n".join(combined_ipns)
+
+                    # FIX: Pass combined_ipns into the recommendation engine!
+                    recommended_packs = VanguardParser.recommend_packs_from_ipns(
+                        ipn_list=combined_ipns, min_stock=1
+                    )
+
+                    # Automatically append newly recommended pack SKUs to the packs textarea
+                    if recommended_packs:
+                        existing_packs = VanguardParser.parse_textarea_input(packs_raw)
+                        new_pack_skus = [
+                            rec["recommended_pack_sku"] for rec in recommended_packs
+                        ]
+                        combined_packs = list(
+                            dict.fromkeys(existing_packs + new_pack_skus)
+                        )
+                        packs_raw = "\n".join(combined_packs)
+
+                    messages.success(
+                        request,
+                        f"Added {len(date_ipns)} IPN(s) and {len(recommended_packs)} recommended pack(s) for {lookup_date}.",
+                    )
+                else:
+                    messages.warning(
+                        request,
+                        f"No IPNs found with a date parameter matching '{lookup_date}'.",
+                    )
+
+        # Save session state
         request.session["active_ipn_list"] = ipn_raw
         request.session["active_packs"] = packs_raw
         request.session["active_sub_box_pulls"] = sub_pulls_raw
+        request.session["active_lookup_date"] = lookup_date
+        request.session["active_recommended_packs"] = recommended_packs
 
-        if action == "save_session":
+        if action in ["save_session", "lookup_by_date"]:
             return render(
                 request,
                 self.template_name,
@@ -53,6 +179,8 @@ class CabalView(View):
                     "ipn_list": ipn_raw,
                     "packs": packs_raw,
                     "sub_box_pulls": sub_pulls_raw,
+                    "selected_date": lookup_date,
+                    "recommended_packs": recommended_packs,
                 },
             )
 

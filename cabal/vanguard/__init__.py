@@ -1,5 +1,5 @@
 # cabal/vanguard/__init__.py
 
-from .views import CabalView
+from .views import VanguardView
 
-__all__ = ["CabalView"]
+__all__ = ["VanguardView"]

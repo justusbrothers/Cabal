@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vanguard - Strategy Report Generator</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f6f8;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+        h1 {
+            color: #1A252C;
+            margin-top: 0;
+            border-bottom: 2px solid #2C3E50;
+            padding-bottom: 10px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #2C3E50;
+        }
+        textarea, input[type="date"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #BDC3C7;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        textarea {
+            height: 120px;
+            resize: vertical;
+        }
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            text-decoration: none;
+            text-align: center;
+        }
+        .btn-primary { background-color: #2C3E50; color: #ffffff; }
+        .btn-primary:hover { background-color: #1A252C; }
+        .btn-secondary { background-color: #7F8C8D; color: #ffffff; }
+        .btn-secondary:hover { background-color: #626D6E; }
+        .btn-info { background-color: #2980B9; color: #ffffff; }
+        .btn-info:hover { background-color: #1F618D; }
+        .btn-outline-danger { background-color: transparent; border: 1px solid #E74C3C; color: #E74C3C; }
+        .btn-outline-danger:hover { background-color: #E74C3C; color: #ffffff; }
+        .help-text {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-top: 4px;
+        }
+        .recommendations-card {
+            background-color: #F8F9F9;
+            border: 1px solid #E5E8E8;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        /* --- Updated Recommendation Card Styling --- */
+        .recommendation-card-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            background: #ffffff;
+            border: 1px solid #dcdfe6;
+            border-radius: 6px;
+            padding: 12px 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .recommendation-checkbox {
+            margin-top: 3px;
+            transform: scale(1.25);
+            cursor: pointer;
+        }
+
+        .recommendation-content {
+            flex: 1;
+        }
+
+        .recommendation-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .recommendation-title {
+            font-size: 14px;
+            color: #1a252c;
+            margin-bottom: 0;
+            font-weight: normal;
+        }
+
+        .cover-flags {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+        }
+
+        .cover-badge {
+            font-family: monospace;
+            font-size: 12px;
+            font-weight: bold;
+            padding: 2px 7px;
+            border-radius: 4px;
+            background-color: #eef2f5;
+            color: #2c3e50;
+            border: 1px solid #cfd8dc;
+            display: inline-block;
+        }
+
+        /* Superscript Stock Number Styling */
+        .cover-badge sup {
+            font-size: 9px;
+            font-weight: 700;
+            line-height: 1;
+            margin-left: 1px;
+            top: -0.4em;
+        }
+
+        /* Red dash / line-through for covers missing stock */
+        .cover-badge.missing-cover {
+            text-decoration: line-through;
+            color: #c0392b;
+            background-color: #fadbd8;
+            border-color: #f5b7b1;
+            opacity: 0.85;
+        }
+
+        .cover-badge.missing-cover sup {
+            /* Keep superscript legible even when badge is struck out */
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .recommendation-qty-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 13px;
+            color: #555;
+            margin-top: 6px;
+        }
+
+        .qty-input {
+            width: 70px;
+            padding: 4px 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .remaining-badge {
+            font-weight: 600;
+            color: #27ae60;
+        }
+
+        .remaining-badge.low-stock {
+            color: #e67e22;
+        }
+
+        .remaining-badge.out-of-stock {
+            color: #c0392b;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Game Day Strategy Report Generator</h1>
+    
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags|default:'info' }}" role="alert" style="padding: 10px; border-radius: 4px; background-color: #e2e3e5; color: #383d41; margin-bottom: 15px;">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <form id="vanguard-form" method="POST" action="">
+        {% csrf_token %}
+
+        <div class="form-group">
+            <label for="lookup_date">Lookup IPNs by Date Parameter</label>
+            <div style="display: flex; gap: 10px;">
+                <input type="date" id="lookup_date" name="lookup_date" value="{{ selected_date }}">
+                <button type="button" id="btn-lookup-date" class="btn btn-info" style="white-space: nowrap;">Lookup by Date</button>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label for="ipn_list">IPN List / Single SKUs</label>
+            <textarea id="ipn_list" name="ipn_list" placeholder="Enter IPNs or SKUs, separated by commas or newlines...">{{ ipn_list }}</textarea>
+            <div class="help-text">List individual item IPNs to inspect for incentive ratio variants and single pulls.</div>
+        </div>
+
+        <div class="form-group">
+            <label>Recommended Packs & Sets</label>
+            
+            <div id="recommendations-container" class="recommendations-card" style="{% if not recommended_packs %}display: none;{% endif %}">
+                <h3 style="margin-top: 0; font-size: 15px; color: #2C3E50;">Recommended Packs</h3>
+                <div id="recommendations-list">
+                    {% for pack in recommended_packs %}
+                        <div class="recommendation-card-item">
+                            <input 
+                                type="checkbox" 
+                                class="recommendation-checkbox pack-checkbox" 
+                                id="pack_{{ forloop.counter }}" 
+                                name="selected_packs" 
+                                value="{{ pack.recommended_pack_sku }}"
+                                {% if not pack.has_missing_cover %}checked{% endif %}
+                            >
+                            <div class="recommendation-content">
+                                <div class="recommendation-header">
+                                    <label for="pack_{{ forloop.counter }}" class="recommendation-title" style="cursor: pointer;">
+                                        <strong>{{ pack.recommended_pack_sku }}</strong> — {{ pack.title }}
+                                    </label>
+                                    <div class="cover-flags">
+                                        {% for cover in pack.cover_details %}
+                                            <span class="cover-badge {% if not cover.has_stock %}missing-cover{% endif %}" title="Stock: {{ cover.qty }}">
+                                                {{ cover.letter }}<sup>{{ cover.qty }}</sup>
+                                            </span>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                <div class="recommendation-qty-row">
+                                    <label for="pack_qty_{{ forloop.counter }}">Build Qty:</label>
+                                    <input 
+                                        type="number" 
+                                        id="pack_qty_{{ forloop.counter }}" 
+                                        class="qty-input" 
+                                        name="pack_qty_{{ pack.recommended_pack_sku }}" 
+                                        value="1" 
+                                        min="0" 
+                                        max="{{ pack.max_buildable_packs }}"
+                                        data-max="{{ pack.max_buildable_packs }}"
+                                        oninput="updateRemainingServerRender(this, 'remaining_{{ forloop.counter }}')"
+                                    >
+                                    <span>Packs Remaining: <strong id="remaining_{{ forloop.counter }}" class="remaining-badge">0</strong></span>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+                <button type="button" id="btn-alert-selected" class="btn btn-secondary" style="margin-top: 10px; padding: 6px 12px; font-size: 13px;">
+                    Add Selected Packs to List
+                </button>
+            </div>
+
+            <label for="packs" style="font-size: 13px; font-weight: normal; margin-top: 10px;">Manual Pack Definition / Custom List</label>
+            <textarea id="packs" name="packs" placeholder="Enter Pack SKUs or definitions...">{{ packs }}</textarea>
+            <div class="help-text">List multi-issue pack SKUs to auto-expand cover breakdowns and assembly checklists.</div>
+        </div>
+
+        <div class="form-group">
+            <label for="sub_box_pulls">Sub Box Pulls</label>
+            <textarea id="sub_box_pulls" name="sub_box_pulls" placeholder="Enter customer sub box pull requests...">{{ sub_box_pulls }}</textarea>
+        </div>
+
+        <div class="btn-group">
+            <button type="submit" name="action" value="generate_pdf" class="btn btn-primary">Generate PDF Strategy Report</button>
+            <button type="submit" name="action" value="save_session" class="btn btn-secondary">Save Parameters</button>
+            <button 
+                type="submit" 
+                name="action" 
+                value="clear_all" 
+                class="btn btn-outline-danger"
+                onclick="return confirm('Are you sure you want to clear all input fields?');"
+            >
+                Clear All
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+// Server-side rendered card quantity helper
+function updateRemainingServerRender(inputElem, remainingElemId) {
+    const max = parseInt(inputElem.dataset.max) || 0;
+    const buildVal = parseInt(inputElem.value) || 0;
+    const remainingSpan = document.getElementById(remainingElemId);
+    if (!remainingSpan) return;
+
+    const remaining = max - buildVal;
+    remainingSpan.textContent = remaining;
+
+    if (remaining <= 0) {
+        remainingSpan.className = 'remaining-badge out-of-stock';
+    } else if (remaining < 2) {
+        remainingSpan.className = 'remaining-badge low-stock';
+    } else {
+        remainingSpan.className = 'remaining-badge';
+    }
+}
+
+// Initial calculation for server-rendered items on page load
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.qty-input').forEach(input => {
+        const id = input.id.replace('pack_qty_', 'remaining_');
+        updateRemainingServerRender(input, id);
+    });
+});
+
+document.getElementById('btn-lookup-date').addEventListener('click', async function () {
+    const form = document.getElementById('vanguard-form');
+    const formData = new FormData(form);
+
+    try {
+        const response = await fetch("api/lookup-packs/", {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.status === 'success' || data.status === 'warning') {
+            if (data.ipn_list) {
+                document.getElementById('ipn_list').value = data.ipn_list;
+            }
+            renderPackRecommendations(data.recommended_packs || []);
+        } else {
+            alert(data.message || 'An error occurred during lookup.');
+        }
+    } catch (error) {
+        console.error('Error fetching recommendations:', error);
+    }
+});
+
+// JavaScript Dynamic Render Section
+function renderPackRecommendations(packs) {
+    const container = document.getElementById('recommendations-container');
+    const listDiv = document.getElementById('recommendations-list');
+    listDiv.innerHTML = '';
+
+    if (!packs || packs.length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+
+    packs.forEach((pack, index) => {
+        const item = document.createElement('div');
+        item.className = 'recommendation-card-item';
+
+        const maxBuildable = pack.max_buildable_packs;
+
+        // Check if any cover variant in this pack is missing/low stock
+        const hasMissingCover = (pack.cover_details || []).some(cover => !cover.has_stock);
+        const isChecked = !hasMissingCover ? 'checked' : '';
+
+        // Render cover badges with superscript stock counts
+        const coverBadgesHtml = (pack.cover_details || []).map(cover => {
+            const isMissing = !cover.has_stock;
+            const badgeClass = isMissing ? 'cover-badge missing-cover' : 'cover-badge';
+            const tooltip = isMissing 
+                ? `Cover ${cover.letter}: Insufficient stock (${cover.qty} available, min 2 required)` 
+                : `Cover ${cover.letter}: Stock ${cover.qty}`;
+            
+            return `<span class="${badgeClass}" title="${tooltip}">${cover.letter}<sup>${cover.qty}</sup></span>`;
+        }).join('');
+
+        item.innerHTML = `
+            <input 
+                type="checkbox" 
+                class="recommendation-checkbox pack-checkbox" 
+                id="pack_dyn_${index}" 
+                name="selected_packs" 
+                value="${pack.recommended_pack_sku}" 
+                ${isChecked}
+            >
+            <div class="recommendation-content">
+                <div class="recommendation-header">
+                    <label for="pack_dyn_${index}" class="recommendation-title" style="cursor: pointer;">
+                        <strong>${pack.recommended_pack_sku}</strong> — ${pack.title}
+                    </label>
+                    <div class="cover-flags">
+                        ${coverBadgesHtml}
+                    </div>
+                </div>
+                <div class="recommendation-qty-row">
+                    <label for="pack_qty_dyn_${index}">Build Qty:</label>
+                    <input 
+                        type="number" 
+                        id="pack_qty_dyn_${index}" 
+                        class="qty-input" 
+                        name="pack_qty_${pack.recommended_pack_sku}" 
+                        value="1" 
+                        min="0" 
+                        max="${maxBuildable}"
+                        data-max="${maxBuildable}"
+                    >
+                    <span>Packs Remaining: <strong id="remaining_dyn_${index}" class="remaining-badge">0</strong></span>
+                </div>
+            </div>
+        `;
+
+        listDiv.appendChild(item);
+
+        const qtyInput = item.querySelector(`#pack_qty_dyn_${index}`);
+        const remainingSpan = item.querySelector(`#remaining_dyn_${index}`);
+
+        function updateRemaining() {
+            const max = parseInt(qtyInput.dataset.max) || 0;
+            const buildVal = parseInt(qtyInput.value) || 0;
+            const remaining = max - buildVal;
+
+            remainingSpan.textContent = remaining;
+
+            if (remaining <= 0) {
+                remainingSpan.className = 'remaining-badge out-of-stock';
+            } else if (remaining < 2) {
+                remainingSpan.className = 'remaining-badge low-stock';
+            } else {
+                remainingSpan.className = 'remaining-badge';
+            }
+        }
+
+        qtyInput.addEventListener('input', updateRemaining);
+        updateRemaining();
+    });
+
+    container.style.display = 'block';
+}
+
+document.getElementById('btn-alert-selected').addEventListener('click', function () {
+    const selectedCheckboxes = document.querySelectorAll('.pack-checkbox:checked');
+    if (selectedCheckboxes.length === 0) {
+        alert('No packs selected!');
+        return;
+    }
+
+    const selectedSkus = Array.from(selectedCheckboxes).map(cb => cb.value);
+    const packsTextarea = document.getElementById('packs');
+
+    if (packsTextarea) {
+        // Get existing text and trim extra whitespace
+        const currentContent = packsTextarea.value.trim();
+        const newSkusText = selectedSkus.join('\n');
+
+        if (currentContent.length > 0) {
+            // Append new SKUs on a new line if textarea already has text
+            packsTextarea.value = `${currentContent}\n${newSkusText}`;
+        } else {
+            // Otherwise, set it directly
+            packsTextarea.value = newSkusText;
+        }
+
+        // Optional: Smoothly scroll down to the textarea so the user sees the update
+        packsTextarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        packsTextarea.focus();
+    }
+});
+</script>
+
+</body>
+</html>

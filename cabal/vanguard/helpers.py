@@ -2,7 +2,18 @@
 
 import re
 
-# Attempt to import InvenTree's Part model directly
+from django.db.models import Sum
+
+# Import InvenTree models matching Syncroth's strategy
+try:
+    from common.models import Parameter, ParameterTemplate
+except ImportError:
+    try:
+        from part.models import Parameter, ParameterTemplate
+    except ImportError:
+        Parameter = None
+        ParameterTemplate = None
+
 try:
     from part.models import Part
 except ImportError:
@@ -233,3 +244,159 @@ class VanguardParser:
         if isinstance(item, dict) and "components" in item:
             return item["components"]
         return []
+
+    @staticmethod
+    def get_ipns_by_param_date(target_date_str):
+        """
+        Queries InvenTree using Syncroth's exact Parameter model_id strategy.
+        """
+        clean_date = target_date_str.strip() if target_date_str else ""
+        if not clean_date or Parameter is None or Part is None:
+            return []
+
+        # Find matching parameters for template_id 68
+        date_params = Parameter.objects.filter(
+            template_id=68, data__icontains=clean_date
+        )
+
+        # Extract the related Part Primary Keys via model_id
+        matching_part_ids = list(date_params.values_list("model_id", flat=True))
+
+        # Query Part table by extracted PKs
+        parts = Part.objects.filter(pk__in=matching_part_ids)
+
+        ipns = []
+        for part in parts:
+            part_ipn = getattr(part, "IPN", None) or getattr(part, "name", None)
+            if part_ipn:
+                ipns.append(part_ipn.strip())
+
+        return list(dict.fromkeys(ipns))
+
+    @classmethod
+    def recommend_packs_from_ipns(cls, ipn_list=None, min_stock=2):
+        """
+        Recommends multi-issue packs. Strictly requires stock >= 2 for a cover variant
+        to be included in the generated pack SKU and title.
+        """
+        # HARD GUARANTEE: Force min_stock to at least 2
+        MIN_REQUIRED_STOCK = max(2, int(min_stock or 2))
+
+        if Part is None or not ipn_list:
+            return []
+
+        # 1. Clean and normalize input tokens
+        raw_tokens = []
+        if isinstance(ipn_list, str):
+            raw_tokens = ipn_list.split()
+        elif isinstance(ipn_list, list):
+            for item in ipn_list:
+                raw_tokens.extend(str(item).split())
+
+        target_tokens = [t.strip().upper() for t in raw_tokens if t.strip()]
+        if not target_tokens:
+            return []
+
+        # Regex matches base issue prefix (e.g. 'CB_MAR_BISHOP_V2-002') and optional variant ('C')
+        variant_pattern = re.compile(r"^(.*-\d+)([A-Z])?$", re.IGNORECASE)
+        base_prefixes = set()
+
+        for token in target_tokens:
+            match = variant_pattern.match(token)
+            if match:
+                base_prefixes.add(match.group(1).upper())
+
+        if not base_prefixes:
+            return []
+
+        # 2. Query all database parts under matching base prefixes
+        from django.db.models import Q
+
+        prefix_query = Q()
+        for prefix in base_prefixes:
+            prefix_query |= Q(IPN__istartswith=prefix)
+
+        query = Part.objects.filter(prefix_query)
+
+        grouped_issues = {}
+
+        for part in query:
+            clean_ipn = part.IPN.strip().upper() if part.IPN else ""
+            if not clean_ipn or "PACK" in clean_ipn:
+                continue
+
+            match = variant_pattern.match(clean_ipn)
+            if not match:
+                continue
+
+            base_ipn = match.group(1).upper()
+            if base_ipn not in base_prefixes:
+                continue
+
+            variant_letter = (match.group(2) or "A").upper()
+
+            # Calculate actual stock
+            actual_qty = 0
+            if hasattr(part, "stock_items"):
+                stock_sum = part.stock_items.filter(quantity__gt=0).aggregate(
+                    total=Sum("quantity")
+                )["total"]
+                actual_qty = int(stock_sum) if stock_sum else 0
+            elif hasattr(part, "in_stock"):
+                actual_qty = int(part.in_stock)
+
+            if base_ipn not in grouped_issues:
+                grouped_issues[base_ipn] = {}
+
+            # Save variant stock & check against hard threshold (>= 2)
+            grouped_issues[base_ipn][variant_letter] = {
+                "qty": actual_qty,
+                "has_stock": actual_qty >= MIN_REQUIRED_STOCK,
+            }
+
+        recommendations = []
+
+        for base_ipn, covers_map in grouped_issues.items():
+            # STRICT FILTER: Only letters where has_stock is TRUE (qty >= 2)
+            available_covers = sorted([
+                letter for letter, data in covers_map.items() if data["has_stock"]
+            ])
+
+            # Require AT LEAST 2 qualifying covers (e.g., A and B) to form a pack
+            if len(available_covers) < 2:
+                continue
+
+            # Build cover details list for ALL variants found in InvenTree
+            all_covers_sorted = sorted(covers_map.keys())
+            cover_details = []
+            for letter in all_covers_sorted:
+                is_eligible = covers_map[letter]["has_stock"]
+                cover_details.append({
+                    "letter": str(letter),
+                    "qty": int(covers_map[letter]["qty"]),
+                    "has_stock": bool(is_eligible),  # False for Cover C (qty: 1)
+                })
+
+            # Build pack string strictly using available_covers ONLY -> "AB"
+            cover_letters_str = "".join(available_covers)
+
+            # Max packs is constrained by the minimum stock among ONLY the qualifying covers
+            max_packs_possible = min(covers_map[c]["qty"] for c in available_covers)
+
+            pack_sku = f"{base_ipn}-PACK{cover_letters_str}"
+            base_title = cls.get_inventree_part_name(base_ipn)
+
+            has_missing_cover = any(not cover["has_stock"] for cover in cover_details)
+
+            recommendations.append({
+                "recommended_pack_sku": pack_sku,  # CB_MAR_BISHOP_V2-002-PACKAB
+                "title": f"{base_title} Set ({', '.join(available_covers)})",  # Bishop #2 Set (A, B)
+                "base_ipn": base_ipn,
+                "available_covers": available_covers,  # ['A', 'B']
+                "cover_details": cover_details,  # Includes A, B, and C (C has has_stock=False)
+                "has_missing_cover": has_missing_cover,  # True if any cover has insufficient stock
+                "cover_count": len(available_covers),  # 2
+                "max_buildable_packs": max_packs_possible,
+            })
+
+        return recommendations
