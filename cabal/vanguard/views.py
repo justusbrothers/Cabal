@@ -1,3 +1,5 @@
+# cabal/vanguard/views.py
+
 import io
 import re
 
@@ -78,7 +80,7 @@ class LookupPacksApiView(APIView):
         )
 
 
-class VanguardView(View):
+class Vanguard(View):
     template_name = "vanguard/vanguard.html"
 
     def get(self, request, *args, **kwargs):
