@@ -1,7 +1,8 @@
 ############ cabal/urls.py ############
 
 from django.urls import path
-from cabal.spectacle.views import Spectacle
+
+from .spectacle import Spectacle
 from cabal.vanguard.views import LookupPacksApiView, Vanguard
 
 app_name = "cabal"
