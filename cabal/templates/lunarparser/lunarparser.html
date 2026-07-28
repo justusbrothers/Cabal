@@ -1,0 +1,324 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% load static %}
+<!-- <link rel="stylesheet" type="text/css" href="{% static 'css/inventree.css' %}"> -->
+
+<style>
+    body, html, .container {
+        background-color: #1c1d1f !important;
+        color: #e3e6e8 !important;
+    }
+    
+    /* Input fields and forms transformation */
+    .form-control, .form-select, input[type="text"], input[type="file"], select.form-select {
+        background-color: #242526 !important;
+        border: 1px solid #3a3b3c !important;
+        color: #e3e6e8 !important;
+    }
+    .form-control::placeholder {
+        color: #72767d !important;
+    }
+    .form-text {
+        color: #a3a6aa !important;
+    }
+
+    /* Main Dashboard Layout Cards Customization */
+    .card {
+        background-color: #242526 !important;
+        border: 1px solid #3a3b3c !important;
+    }
+    .card-header {
+        background-color: #2c2d30 !important;
+        border-bottom: 1px solid #3a3b3c !important;
+        color: #ffffff !important;
+    }
+    .card-footer {
+        background-color: #2c2d30 !important;
+        border-top: 1px solid #3a3b3c !important;
+        color: #a3a6aa !important;
+    }
+
+    /* Matrix Preview Table Dark Scheme Override */
+    #previewTable, .table {
+        color: #e3e6e8 !important;
+        background-color: #242526 !important;
+    }
+    #previewTable thead th, .table thead th {
+        background-color: #2c2d30 !important;
+        color: #ffffff !important;
+        border-bottom: 2px solid #3a3b3c !important;
+    }
+    #previewTable tbody tr, .table tbody tr {
+        background-color: #242526 !important;
+    }
+    #previewTable tbody tr:hover, .table tbody tr:hover {
+        background-color: #2c2d30 !important;
+    }
+    #previewTable td, .table td {
+        border-color: #3a3b3c !important;
+    }
+
+    /* Custom Style Override for Dark Mode Pagination Links */
+    .pagination .page-link {
+        background-color: #242526 !important;
+        border-color: #3a3b3c !important;
+        color: #e3e6e8 !important;
+    }
+    .pagination .page-link:hover {
+        background-color: #2c2d30 !important;
+        color: #ffffff !important;
+    }
+    .pagination .page-item.active .page-link {
+        background-color: #0dcaf0 !important;
+        border-color: #0dcaf0 !important;
+        color: #1c1d1f !important;
+    }
+    .pagination .page-item.disabled .page-link {
+        background-color: #1c1d1f !important;
+        border-color: #3a3b3c !important;
+        color: #72767d !important;
+    }
+
+    /* Keep Alert Elements Clean and High Contrast */
+    .alert-danger {
+        background-color: #3d1b1d !important;
+        border-color: #612224 !important;
+        color: #fbc7c8 !important;
+    }
+    .alert-warning {
+        background-color: #382c16 !important;
+        border-color: #5c4314 !important;
+        color: #fce8bc !important;
+    }
+    .alert-success {
+        background-color: #163820 !important;
+        border-color: #1e5c30 !important;
+        color: #bcfcc8 !important;
+    }
+
+    .text-muted {
+        color: #8a8e94 !important;
+    }
+</style>
+
+<div class="container mt-4">
+    <h1>LunarParser - UPC Validator & Cleaner</h1>
+
+    <div class="card mb-3 bg-dark border-secondary">
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data" class="">
+                {% csrf_token %}
+                <div class="row align-items-center">
+                    <div class="col-md-8 mb-2 mb-md-0">
+                        <input type="file" name="csv_file" class="form-control" accept=".csv" required>
+                    </div>
+
+                    <div class="col-md-4">
+                        <button type="submit" class="btn btn-primary w-100">Upload & Validate</button>
+                    </div>
+                </div>
+
+                <!-- <div class="d-flex align-items-center gap-2">
+                    <label for="lunarExcelResetInput" class="btn btn-sm btn-outline-warning font-monospace mb-0">📂 Upload Modified Excel Sheet</label>
+
+                    <input type="file" id="lunarExcelResetInput" accept=".csv" style="display: none;">
+
+                    <button id="clearMatrixBtn" class="btn btn-sm btn-outline-danger font-monospace" style="display: none;">Reset Matrix</button>
+                </div> -->
+            </form>
+        </div>
+
+        {% if import_message %}
+            <div class="card-body pt-0">
+                <div class="alert alert-{% if success %}success{% else %}danger{% endif %} mb-0">
+                    {{ import_message }}
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="card mb-3 bg-dark border-secondary">
+        <div class="card-body d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-3">
+                <button id="startBatchBtn" type="button" class="btn btn-sm btn-primary font-monospace" onclick="runAutomatedBatch()">
+                    ⚡ Run Automated Batch
+                </button>
+
+                <button id="stopBatchBtn" type="button" class="btn btn-sm btn-outline-danger font-monospace" onclick="stopAutomatedBatch()" disabled>
+                    🛑 Stop
+                </button>
+            </div>
+
+            <span class="text-muted small font-monospace">Rate Limit Protection: 1.2s delay/req</span>
+        </div>
+    </div>
+
+    {% if preview_rows %}
+    <div class="row mb-3 align-items-center g-2">
+        <div class="col-md-8 col-lg-5 ms-auto">
+            <div class="input-group input-group-sm font-monospace">
+                <span class="input-group-text bg-secondary text-white border-secondary">🔍 Filter Matrix:</span>
+                <input type="text" id="uiTableFilterToken" class="form-control" placeholder="Type title, UPC, or key token...">
+            </div>
+        </div>
+    </div>
+
+    <div class="card mt-2 mb-4" style="border-color: #3a3b3c;">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">📋 File Preview Layout</h5>
+
+            <span class="badge bg-secondary font-monospace">Spectacle Integrated</span>
+        </div>
+
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover mb-0 font-monospace small" id="previewTable">
+                    <thead>
+                        <tr>
+                            {% for header in preview_headers %}
+                                <th>{{ header }}</th>
+                            {% endfor %}
+                            <th class="text-center text-info">Actions</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="previewTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card-footer d-flex justify-content-between align-items-center bg-dark border-top-0">
+            <div class="small text-muted font-monospace" id="paginationInfo"></div>
+
+            <nav aria-label="Table Page Navigation">
+                <ul class="pagination pagination-sm mb-0" id="paginationControls"></ul>
+            </nav>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="card shadow-sm border-0 mt-3">
+        <div class="card-header bg-dark text-white py-2">
+            <h6 class="mb-0 font-monospace">📋 Imported Session IPNs</h6>
+        </div>
+
+        <div class="card-body p-2">
+            <textarea id="sessionIpnLog" class="form-control font-monospace text-success bg-dark" rows="5" readonly placeholder="Imported IPNs will stream here automatically..."></textarea>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 mt-3">
+        <div class="card-header bg-dark text-white py-2">
+            <h6 class="mb-0 font-monospace">📋 Reports / Exports</h6>
+        </div>
+
+        <div class="card-body p-2">
+            <div class="col-md-4 col-lg-3">
+                <a href="?download=excel" class="btn btn-success w-100 font-monospace">
+                    📥 Download Cleaned Excel
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="comicScannerModal" tabindex="-1" aria-labelledby="comicScannerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 text-white shadow-lg" style="background-color: #242526;">
+            <div class="modal-header text-white" style="border-bottom: 1px solid #3a3b3c;">
+                <h5 class="modal-title font-monospace" id="comicScannerModalLabel">🧬 Spectacle Edit & Ingest Inventory</h5>
+
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            
+            <div class="modal-body p-4" id="modalScanBody" style="background-color: #242526; max-height: 70vh; overflow-y: auto;"></div>
+
+            <div class="modal-footer d-flex justify-content-between" style="border-top: 1px solid #3a3b3c;">
+                <button type="button" class="btn btn-sm btn-secondary font-monospace" data-bs-dismiss="modal">Close</button>
+
+                <button type="button" id="submitToInvenTreeBtn" class="btn btn-sm btn-success font-monospace">
+                    🚀 Create Part & Stock Record
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{ preview_rows|json_script:"preview-data-matrix" }}
+
+<script>
+    (function() {
+        const boostrapCss = document.createElement('link');
+        boostrapCss.rel = 'stylesheet';
+        boostrapCss.href = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css';
+        document.head.appendChild(boostrapCss);
+
+        const bootstrapJs = document.createElement('script');
+        bootstrapJs.src = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js';
+        document.head.appendChild(bootstrapJs);
+
+        const xlsxJs = document.createElement('script');
+        xlsxJs.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+        document.head.appendChild(xlsxJs);
+    })();
+
+    let previewRows = JSON.parse(document.getElementById('preview-data-matrix').textContent || '[]');
+
+    document.addEventListener('DOMContentLoaded', function() {
+        if (previewRows && previewRows.length > 0) {
+            filterAndRenderMatrix();
+        }
+    });
+
+    let activeBatchProcessor = null;
+
+    function runAutomatedBatch() {        
+        if (!previewRows || previewRows.length === 0) {
+            alert("No CSV rows loaded to process.");
+            return;
+        }
+
+        document.getElementById('startBatchBtn').disabled = true;
+
+        document.getElementById('stopBatchBtn').disabled = false;
+
+        // Map raw preview rows into structured objects
+        const structuredRows = previewRows.map(r => ({
+            title: r[0],
+            upc: r[1],
+            ipn: r[2],
+            retail: r[3],
+            qty: r[4]
+        }));
+
+        activeBatchProcessor = new InvenTreeBatchProcessor({
+            delayMs: 1200
+        });
+
+        activeBatchProcessor.startBatch(structuredRows).then(() => {
+            document.getElementById('startBatchBtn').disabled = false;
+
+            document.getElementById('stopBatchBtn').disabled = true;
+        });
+    }
+
+    function stopAutomatedBatch() {
+        if (activeBatchProcessor) {
+            activeBatchProcessor.stop();
+
+            document.getElementById('startBatchBtn').disabled = false;
+
+            document.getElementById('stopBatchBtn').disabled = true;
+        }
+    }
+</script>
+
+<script src="{% static 'plugins/lunarparser/lunarparser/js/_config.js' %}"></script>
+<script src="{% static 'plugins/lunarparser/lunarparser/js/_matrix_table.js' %}"></script>
+<script src="{% static 'plugins/lunarparser/lunarparser/js/_comic_lookup.js' %}"></script>
+<script src="{% static 'plugins/lunarparser/lunarparser/js/_inventree_ingest.js' %}"></script>
+<script src="{% static 'plugins/lunarparser/lunarparser/js/_batch_processor.js' %}"></script>
+<script src="{% static 'plugins/lunarparser/lunarparser/js/_utils.js' %}"></script>
+
+{% endblock %}
