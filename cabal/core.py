@@ -1,4 +1,5 @@
-############ cabal/core.py ############
+# cabal/core.py
+
 #### Just Us Brothers comic management tools
 
 from plugin import InvenTreePlugin

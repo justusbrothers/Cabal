@@ -19,22 +19,23 @@ class CustomerExporterView(View):
             data = json.loads(request.body)
             buyers_list = data.get("buyers", [])
             tippers_list = data.get("tippers", [])
-
             df_buyers = pd.DataFrame(buyers_list)
             df_tippers = pd.DataFrame(tippers_list)
-
             rename_map = {
                 "BUYER_NAME": "Buyer Username",
                 "STATE": "State",
                 "COUNTRY": "Country",
                 "LAST_TRANSACTION": "Last Seen Transaction",
             }
+
             if not df_buyers.empty:
                 df_buyers = df_buyers.rename(columns=rename_map)
+
             if not df_tippers.empty:
                 df_tippers = df_tippers.rename(columns=rename_map)
 
             output = io.BytesIO()
+
             with pd.ExcelWriter(output, engine="openpyxl") as writer:
                 if not df_buyers.empty:
                     df_buyers.to_excel(
@@ -57,13 +58,16 @@ class CustomerExporterView(View):
                     )
 
             output.seek(0)
+
             response = HttpResponse(
                 output.getvalue(),
                 content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             )
+
             response["Content-Disposition"] = (
                 'attachment; filename="Whatnot_CustomerExporter_Report.xlsx"'
             )
+
             return response
 
         except Exception as e:

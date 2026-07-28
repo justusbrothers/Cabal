@@ -1,4 +1,4 @@
-# cabal/customerorders.py
+# cabal/views/customerorders.py
 
 from django.shortcuts import render
 

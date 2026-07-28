@@ -1,4 +1,4 @@
-# constants.py in comic_scanner plugin
+# cabal/constants.py
 
 # -----------------------------------------------------------------
 # 1. THE SINGLE SOURCE OF TRUTH REGISTRY

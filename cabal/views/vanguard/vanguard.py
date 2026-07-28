@@ -1,4 +1,4 @@
-# cabal/vanguard/views.py
+# cabal/views/vanguard/vanguard.py
 
 import io
 import re

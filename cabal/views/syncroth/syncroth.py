@@ -1,4 +1,5 @@
-# syncroth/views.py
+# cabal/views/syncroth/syncroth.py
+
 import logging
 import re
 
