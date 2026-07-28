@@ -1,0 +1,31 @@
+<h5 class="mb-3 mt-3 text-uppercase h5-header unit-count">
+    Scan Results: <span class="text-white">({{ parts_count }} Units Detected)</span>
+</h5>
+
+<div class="metal-card">
+    <form method="post">
+        {% csrf_token %}
+        <textarea id="partsList" name="ipn_list" rows="8" class="form-control mb-3"
+                  placeholder="Input IPN stream...">{{ incomplete_parts_list }}</textarea>
+
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-syncroth" onclick="copyIPSListToClipboard()">
+                Copy Stream
+            </button>
+
+            <button type="button" class="btn btn-syncroth" id="export-csv-button">
+                Export CSV
+            </button>
+
+            <!-- <button type="submit" class="btn btn-syncroth" style="border-color: #28a745;">
+                Re-Process List
+            </button> -->
+
+            <button type="button" class="btn btn-syncroth" id="show-move-section-btn">
+                Move Stock Location
+            </button>
+
+            <span id="copyStatus" class="align-self-center ms-2" style="color: var(--blood-red);"></span>
+        </div>
+    </form>
+</div>

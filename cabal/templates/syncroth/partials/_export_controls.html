@@ -1,0 +1,70 @@
+<textarea id="csvData" style="display:none;">{{ csv_text }}</textarea>
+
+<div id="csv-exporter" class="metal-card mt-3 mb-3">
+    <div class="row">
+        <div class="col-md-12">
+            <label for="export_type" class="form-label">TARGET PLATFORM PARSER</label>
+            <select id="export_type" class="form-select mb-3">
+                <option value="inventree" {% if parser_name == "inventree" %}selected{% endif %}>InvenTree (Default)</option>
+                <option value="description_only" {% if parser_name == "description_only" %}selected{% endif %}>Description Only</option>
+                <option value="ebay" {% if parser_name == "ebay" %}selected{% endif %}>eBay Marketplace</option>
+                <option value="whatnot" {% if parser_name == "whatnot" %}selected{% endif %}>Whatnot Feed</option>
+                <option value="woocommerce" {% if parser_name == "woocommerce" %}selected{% endif %}>WooCommerce API</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="row" style="display: {% if parser_name == 'whatnot' %}block{% else %}none{% endif %};" id="whatnot_options">
+        <div class="row g-2">
+            <div class="col-md-6">
+                <label for="whatnot_listing_type" class="form-label">WHATNOT LISTING TYPE</label>
+
+                <select id="whatnot_listing_type" class="form-select mb-3">
+                    <option value="Auction" {% if whatnot_listing_type == "Auction" %}selected{% endif %}>Auction</option>
+                    <option value="Buy It Now" {% if whatnot_listing_type == "Buy It Now" %}selected{% endif %}>Buy It Now</option>
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label for="whatnot_release_date" class="form-label">COMIC RELEASE DATE</label>
+
+                <input type="text" 
+                       id="whatnot_release_date" 
+                       class="form-control mb-3" 
+                       placeholder="e.g. [In Stock: 2026-07-23]" 
+                       value="{% if selected_in_stock_date %}[In Stock: {{ selected_in_stock_date }}]{% endif %}">
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2" id="copySaveButtons">
+        <button type="button" class="btn btn-syncroth" onclick="copyCSVToClipboard()">Copy CSV</button>
+
+        <form method="post" class="d-inline">
+            {% csrf_token %}
+            
+            <input type="hidden" name="whatnot_custom_suffix" id="hidden_whatnot_custom_suffix" value="">
+            
+            {% if selected_location %}
+                <input type="hidden" name="location" value="{{ selected_location }}">
+                <input type="hidden" name="data_point" value="{{ selected_field }}">
+            {% endif %}
+
+            <input type="hidden" name="ipn_list" id="hidden_download_ipns" value="{{ incomplete_parts_list }}">
+            
+            <input type="hidden" name="format" value="csv">
+            <input type="hidden" name="export_action" value="download_csv">
+            <input type="hidden" id="download_parser" name="parser" value="{{ parser_name }}">
+            <input type="hidden" name="ebay_listing_type" id="hidden_ebay_listing_type" value="{{ ebay_listing_type|default:'FixedPriceItem' }}">
+            <input type="hidden" name="whatnot_listing_type" id="hidden_whatnot_listing_type" value="{{ whatnot_listing_type|default:'Auction' }}">
+
+            <button type="submit" class="btn btn-download">Download CSV Data</button>
+
+            <a href="{% url 'plugin:syncroth:weekly_report_pdf' %}" class="btn btn-secondary ms-2" target="_blank">
+                <i class="fas fa-file-pdf"></i> Download Weekly Report
+            </a>
+        </form>
+        <span id="csvCopyStatus" class="align-self-center ms-2" style="color: var(--blood-red);"></span>
+    </div>
+
+    {% include "syncroth/partials/_csv_preview.html" %}
+</div>

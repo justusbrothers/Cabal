@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Part Lookup</h1>
+
+    <form method="get" class="mb-4">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label for="search" class="form-label">Search Term</label>
+                <input type="text" name="search" id="search" class="form-control" value="{{ search_term }}" placeholder="e.g. Stan Lee, 1992, Spawn" required>
+                <small class="form-text text-muted">Searches part name, description, IPN, keywords, and all parameters.</small>
+            </div>
+            <div class="col-md-4">
+                <label for="key" class="form-label">Limit to Parameter (Optional)</label>
+                <select name="key" id="key" class="form-select">
+                    <option value="">-- All Parameters --</option>
+                    {% for key in parameter_keys %}
+                        <option value="{{ key }}" {% if selected_key == key %}selected{% endif %}>{{ key }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">Search</button>
+            </div>
+        </div>
+    </form>
+
+    {% if search_term %}
+        <h2>Matching IPNs ({{ parts_count }} found):</h2>
+
+        <textarea id="ipnList" rows="15" class="form-control mb-3" readonly>{{ ipn_display }}</textarea>
+
+        <div class="mb-4">
+            <button type="button" class="btn btn-secondary" onclick="copyIPNsToClipboard()">
+                Copy IPNs
+            </button>
+            <span id="copyStatus" class="ms-2 fw-bold text-success"></span>
+        </div>
+
+        {% if matching_parts %}
+            <details class="mt-4">
+                <summary class="h5 btn btn-outline-info">Show Detailed Matches ({{ parts_count }})</summary>
+                <div class="table-responsive mt-3">
+                    <table class="table table-sm table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>IPN</th>
+                                <th>Name</th>
+                                <th>Matching Fields</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in matching_parts %}
+                                <tr>
+                                    <td><code>{{ item.part.IPN }}</code></td>
+                                    <td><strong>{{ item.part.name }}</strong></td>
+                                    <td>
+                                        <ul class="mb-0 small">
+                                            {% for match in item.matches %}
+                                                <li>{{ match }}</li>
+                                            {% endfor %}
+                                        </ul>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </details>
+        {% endif %}
+    {% endif %}
+
+    <div class="mt-4">
+        <a href="{% url 'plugin:syncroth:index' %}" class="btn btn-outline-primary">
+            ← Back to Home
+        </a>
+    </div>
+</div>
+
+<script>
+function copyIPNsToClipboard() {
+    const textarea = document.getElementById("ipnList");
+    textarea.select();
+    textarea.setSelectionRange(0, 99999);
+
+    navigator.clipboard.writeText(textarea.value.trim())
+        .then(() => {
+            document.getElementById("copyStatus").innerText = "Copied!";
+            setTimeout(() => document.getElementById("copyStatus").innerText = "", 3000);
+        })
+        .catch(err => {
+            console.error(err);
+            document.getElementById("copyStatus").innerText = "Copy failed";
+        });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1><i class="ti ti-settings-automation me-2"></i>Parameter Updater</h1>
+
+    <div class="row">
+        <div class="col-lg-8">
+
+            {% if message %}
+                <div class="alert {% if errors %}alert-warning{% else %}alert-success{% endif %} alert-dismissible fade show">
+                    {% if processed_count > 0 %}
+                        <strong>Processed {{ processed_count }} part{{ processed_count|pluralize }}.</strong><br>
+                    {% endif %}
+                    {{ message|safe }}
+                    {% if errors %}
+                        <hr>
+                        <ul class="mb-0">
+                            {% for error in errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endif %}
+
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Upload CSV to Add/Update Part Parameters</h5>
+                    <p class="text-muted">
+                        This tool lets you bulk-add or update <strong>part parameters</strong> using a simple CSV.<br>
+                        <strong>Required column:</strong> <code>IPN</code> (matches Internal Part Number)<br>
+                        All other columns become parameter names with their cell values as data.
+                    </p>
+
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <input type="file" name="csv_file" accept=".csv" class="form-control" required>
+                        </div>
+                        <button type="submit" class="btn btn-success btn-lg">
+                            <i class="ti ti-upload me-2"></i>
+                            Upload & Import Parameters
+                        </button>
+                    </form>
+
+                    <hr class="my-4">
+
+                    <h6>Example CSV:</h6>
+                    <pre class="bg-light p-3 rounded small">
+IPN,Name,Creators: Writer,Creators: Penciller,Creators: Inker
+CB-001,Spider-Man #1,Stan Lee,Steve Ditko,Terry Austin
+CB-002,Batman: Year One,Frank Miller,David Mazzucchelli,Richmond Lewis
+                    </pre>
+
+                    <p class="mt-3 text-muted small">
+                        <strong>Tips:</strong><br>
+                        • Parameter templates are created automatically if they don't exist.<br>
+                        • Existing parameters are updated if the IPN + parameter name already exists.<br>
+                        • Empty cells are saved as empty strings (you can leave optional fields blank).
+                    </p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="mt-4">
+        <a href="{% url 'plugin:syncroth:data-tool' %}" class="btn btn-outline-primary">
+            ← Back to Data Tool
+        </a>
+    </div>
+</div>
+{% endblock %}

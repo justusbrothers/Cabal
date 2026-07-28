@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load inventree_extras %}
+
+{% block page_title %}
+JustUs Brothers | Syncroth | Data Tool
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    {% include "syncroth/partials/_styles.html" %}
+
+    <div class="syncroth-wrapper">
+        {% include "syncroth/partials/_header.html" %}
+
+        {% include "syncroth/partials/_scan_form.html" %}
+
+        {% include "syncroth/partials/_move_stock.html" %}
+
+        {% include "syncroth/partials/_export_controls.html" %}
+    </div>
+</div>
+
+{% include "syncroth/partials/_scripts.html" %}
+{% endblock %}

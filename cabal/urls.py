@@ -5,6 +5,7 @@ from django.urls import path
 from .views import (
     CustomerExporterView,
     CustomerOrders,
+    DataToolView,
     LookupPacksApiView,
     LunarParser,
     Spectacle,
@@ -18,6 +19,7 @@ urlpatterns = [
     path("customerorders/", CustomerOrders, name="customerorders"),
     path("lunarparser/", LunarParser.as_view(), name="lunarparser"),
     path("spectacle/", Spectacle.as_view(), name="spectacle"),
+    path("syncroth/", DataToolView.as_view(), name="datatool"),
     path("vanguard/", Vanguard.as_view(), name="vanguard"),
     path(
         "vanguard/api/lookup-packs/",

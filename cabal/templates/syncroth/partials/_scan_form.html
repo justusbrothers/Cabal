@@ -1,0 +1,68 @@
+<!-- _scan_form.html -->
+
+<div class="metal-card">
+    <form method="get" id="scan-form">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label for="location" class="form-label">Stock Core Location:</label>
+                <select name="location" id="location" class="form-select">
+                    <option value="">--Select Location--</option>
+                    {% for loc in locations %}
+                        <option value="{{ loc.id }}" {% if selected_location == loc.id|stringformat:"s" %}selected{% endif %}>
+                            {{ loc.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-4">
+                <label for="data_point" class="form-label">Validation Data Point:</label>
+                <select name="data_point" id="data_point" class="form-select">
+                    {% for field, label in data_points %}
+                        <option value="{{ field }}" {% if selected_field == field %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-4">
+                <label for="in_stock_date" class="form-label">In Stock Date:</label>
+                <input type="date" 
+                       name="in_stock_date" 
+                       id="in_stock_date" 
+                       class="form-select" 
+                       value="{{ selected_in_stock_date }}">
+            </div>
+        </div>
+
+        <div class="mt-3">
+            <label for="partsList" class="form-label text-uppercase fw-bold">
+                IPN Stream Input <span class="unit-count text-muted">({{ parts_count|default:0 }} Units)</span>
+            </label>
+            <textarea id="partsList" 
+                      name="ipn_list" 
+                      rows="8" 
+                      class="form-control mb-3"
+                      placeholder="Input or paste IPN stream here...">{{ incomplete_parts_list }}</textarea>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+            <button type="submit" class="btn btn-syncroth">Initialize Scan</button>
+
+            <button type="button" class="btn btn-syncroth" onclick="copyIPSListToClipboard()">
+                Copy Stream
+            </button>
+
+            <button type="button" class="btn btn-syncroth" id="export-csv-button">
+                Export CSV
+            </button>
+
+            <button type="button" class="btn btn-syncroth" id="show-move-section-btn">
+                Move Stock Location
+            </button>
+
+            <span id="copyStatus" class="align-self-center ms-2" style="color: var(--blood-red);"></span>
+        </div>
+    </form>
+</div>
