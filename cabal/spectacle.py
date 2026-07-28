@@ -5,7 +5,9 @@ import math
 import os
 import re
 import requests
+import textwrap
 import time
+import unicodedata
 
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -48,6 +50,30 @@ except ImportError:
 
 class Spectacle(APIView):
     permission_classes = [IsAuthenticated]
+
+    def clean_text_encoding(self, text: str) -> str:
+        """Fixes character encoding corruptions (Mojibake) and normalizes character casing."""
+        if not text:
+            return ""
+
+        # Step 1: Attempt Mojibake repair (Latin-1 bytes read as UTF-8)
+        try:
+            text = text.encode("latin-1").decode("utf-8")
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            pass
+
+        # Step 2: Normalize Unicode representation (NFC form)
+        text = unicodedata.normalize("NFC", text)
+
+        # Step 3: Fix casing issues (e.g., "JiméNez" -> "Jiménez")
+        # Uses title() across words while respecting unicode characters
+        words = text.split()
+        cleaned_words = [
+            w.capitalize() if w.isupper() or any(c.isupper() for c in w[1:]) else w
+            for w in words
+        ]
+
+        return " ".join(cleaned_words)
 
     def shorten_series_name(self, name, max_len=14):
         return "".join(c for c in name.upper() if c.isalnum())[:max_len]
@@ -133,9 +159,12 @@ class Spectacle(APIView):
             auth = requests.auth.HTTPBasicAuth(metron_user, metron_pass)
 
             if MOKKARI_AVAILABLE:
+                logger.info("Spectacle: MOKKARI_AVAILABLE: %s", MOKKARI_AVAILABLE)
+
                 try:
                     api = mokkari.api(metron_user, metron_pass)
                     issues = api.issues_list({"upc": target_upc})
+                    logger.info("Spectacle: issues: %s", issues)
 
                     if not issues and target_upc != original_barcode:
                         issues = api.issues_list({"upc": original_barcode})
@@ -228,10 +257,15 @@ class Spectacle(APIView):
                     timeout=15,
                 )
 
+                logger.info("Spectacle: 200:resp.status_code: %s", resp.status_code)
+
                 if resp.status_code == 200:
                     results = resp.json().get("results", [])
+                    logger.info("Spectacle: 200:results: %s", results)
+
                     if results:
                         issue_id = results[0].get("id")
+
                         time.sleep(0.5)
 
                         detail_resp = requests.get(
@@ -240,6 +274,13 @@ class Spectacle(APIView):
                             headers=headers,
                             timeout=15,
                         )
+
+                        logger.info(
+                            "Spectacle: 200:url: https://metron.cloud/api/issue/%s/ | detail_resp: %s",
+                            issue_id,
+                            detail_resp,
+                        )
+
                         if detail_resp.status_code == 200:
                             full_anchor = detail_resp.json()
                             raw_variants = full_anchor.get("variants", []) or []
@@ -250,19 +291,21 @@ class Spectacle(APIView):
                                     variant_upc = str(
                                         variant.get("upc") or variant.get("sku") or ""
                                     )
+
                                     clean_variant_upc = "".join(
                                         c for c in variant_upc if c.isdigit()
                                     )
+
                                     all_issue_variants.append({
                                         "id": variant.get("id"),
+                                        "image": str(variant.get("image") or ""),
                                         "name": variant.get("name")
                                         or variant.get("variant")
                                         or "",
-                                        "upc": clean_variant_upc,
                                         "price": self.clean_price_string(
                                             variant.get("price")
                                         ),
-                                        "image": str(variant.get("image") or ""),
+                                        "upc": clean_variant_upc,
                                     })
 
             # Store in cache for 2 minutes
@@ -296,7 +339,7 @@ class Spectacle(APIView):
 
         # --- 3. BUILD RESPONSE DATA ---
         series_dict = full_anchor.get("series", {})
-        series_name = series_dict.get("name", "").strip()
+        series_name = self.clean_text_encoding(series_dict.get("name", "").strip())
         volume = series_dict.get("volume")
         issue_number = full_anchor.get("number", "?")
 
@@ -304,7 +347,9 @@ class Spectacle(APIView):
         store_date_str = str(raw_store_date) if raw_store_date else ""
 
         publisher_dict = series_dict.get("publisher", {})
-        raw_publisher_name = publisher_dict.get("name", "Unknown Publisher")
+        raw_publisher_name = self.clean_text_encoding(
+            publisher_dict.get("name", "Unknown Publisher")
+        )
         normalized_name = self.normalize_publisher_name(raw_publisher_name)
 
         pub_code = constants.PUBLISHER_CODES.get(raw_publisher_name, "UNK")
@@ -326,14 +371,14 @@ class Spectacle(APIView):
 
         # Determine variant attributes & variant-specific pricing
         if matched_variant:
-            raw_variant = matched_variant.get("name", "")
+            raw_variant = self.clean_text_encoding(matched_variant.get("name", ""))
             variant_image = matched_variant.get("image") or str(
                 full_anchor.get("image", "")
             )
             variant_id = matched_variant.get("id") or full_anchor.get("id")
             raw_price = matched_variant.get("price") or full_anchor.get("price")
         else:
-            raw_variant = (
+            raw_variant = self.clean_text_encoding(
                 full_anchor.get("variant") or full_anchor.get("cover") or ""
             ).strip()
             variant_image = str(full_anchor.get("image", ""))
@@ -383,9 +428,12 @@ class Spectacle(APIView):
             variant_val = "Standard"
             display_suffix = ""
 
-        clean_description = strip_html(
+        raw_desc = strip_html(
             full_anchor.get("desc") or full_anchor.get("description", "")
         )
+
+        # Ensures total length <= 250 and breaks on word boundaries
+        clean_description = textwrap.shorten(raw_desc, width=250, placeholder="...")
 
         base_ipn_slug = self.shorten_series_name(series_name)
         issue_slug = str(issue_number).zfill(3)
@@ -422,7 +470,7 @@ class Spectacle(APIView):
             "metron_id": int(variant_id),
             "image_url": str(variant_image),
             "part_link": f"https://metron.cloud/issue/{variant_id}/",
-            "listed_on_whatnot": False,
+            "listed_on_whatnot": True,
             "price": price,
             "whatnot_price": rounded_price,
             "store_date": store_date_str,
@@ -447,7 +495,7 @@ class Spectacle(APIView):
         for variant in all_issue_variants:
             variant_upc = variant.get("upc", "")
             if variant_upc and variant_upc != original_barcode:
-                variant_name = variant.get("name", "Variant")
+                variant_name = self.clean_text_encoding(variant.get("name", "Variant"))
                 variant_price = variant.get("price") or price
 
                 variant_rounded_price = ""
