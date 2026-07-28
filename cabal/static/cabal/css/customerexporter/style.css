@@ -1,0 +1,355 @@
+/* plugins/customerexporter/customerexporter/css/style.css */
+
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300..700&family=Pacifico&display=swap');
+
+body {
+    background-color: #ffeef2; 
+    background-image: 
+        radial-gradient(circle at 20% 30%, rgba(255, 105, 180, 0.18) 8px, transparent 9px),
+        radial-gradient(circle at 75% 15%, rgba(255, 20, 147, 0.15) 12px, transparent 13px),
+        radial-gradient(circle at 10% 75%, rgba(255, 182, 193, 0.25) 15px, transparent 16px),
+        radial-gradient(circle at 85% 80%, rgba(255, 105, 180, 0.15) 10px, transparent 11px);
+    background-size: 60px 60px;
+    font-family: 'Fredoka', sans-serif;
+}
+
+/* --- Soft Bubblegum Pink Dashed Borders Everywhere --- */
+.card {
+    background: rgba(255, 255, 255, 0.98) !important;
+    border: 3px dashed #ff69b4 !important; 
+    border-radius: 24px !important;
+    box-shadow: 0 12px 32px rgba(255, 20, 147, 0.15) !important;
+    overflow: hidden;
+}
+
+/* --- Flamboyant Headers & Cursive Accent --- */
+h1, h2, h3, h4, .card-title, .text-primary {
+    color: #ff007f !important;
+    font-family: 'Pacifico', cursive !important;
+    text-transform: none !important;
+    letter-spacing: 0px !important;
+    text-shadow: 2px 2px 0px #fff, 4px 4px 0px #ffb6c1;
+}
+
+p, .text-muted, .form-text {
+    color: #ff69b4 !important;
+    font-weight: 600;
+}
+
+.bg-body-tertiary, .bg-body, .bg-light {
+    background-color: #fff5f7 !important;
+}
+
+.card-header {
+    /*background: linear-gradient(135deg, #fff0f5 0%, #ffe4e1 100%) !important;*/
+    /*border-bottom: 3px dashed #ff69b4 !important;*/
+    font-family: 'Fredoka', sans-serif;
+    font-weight: 700;
+    color: #ff007f !important;
+}
+
+/* --- Buttons --- */
+.btn-primary, #processBtn {
+    background: linear-gradient(45deg, #ff69b4, #ff007f) !important;
+    border: none !important;
+    color: white !important;
+    font-weight: 700;
+    border-radius: 30px;
+    box-shadow: 0 4px 15px rgba(255, 0, 127, 0.3);
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.btn-primary:hover:not([disabled]), #processBtn:hover:not([disabled]) {
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 8px 20px rgba(255, 0, 127, 0.5);
+}
+.btn-primary:disabled, #processBtn:disabled {
+    background: #ffb6c1 !important;
+    color: #ffffff !important;
+    opacity: 0.7;
+}
+
+.btn-success, #exportBtn {
+    background: linear-gradient(45deg, #da70d6, #9c27b0) !important; 
+    border: none !important;
+    color: white !important;
+    font-weight: 700;
+    border-radius: 30px;
+    box-shadow: 0 4px 15px rgba(156, 39, 176, 0.3);
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.btn-success:hover:not([disabled]), #exportBtn:hover:not([disabled]) {
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 8px 20px rgba(156, 39, 176, 0.5);
+}
+
+.btn-outline-danger {
+    color: #ff0055 !important;
+    border: 2px solid #ff0055 !important;
+    background-color: #fff0f5 !important;
+    font-weight: 700;
+    border-radius: 30px;
+}
+
+/* --- Bubble Navigation Tabs --- */
+.nav-tabs .nav-link {
+    border-radius: 25px !important;
+    padding: 8px 20px !important;
+    font-weight: 700;
+    color: #ff007f !important;
+    background-color: #fff0f5 !important;
+    border: 2px solid #ffb6c1 !important;
+    transition: all 0.2s ease;
+}
+.nav-tabs .nav-link.active, .nav-tabs .nav-link:hover {
+    background: linear-gradient(45deg, #ff69b4, #ff007f) !important;
+    color: white !important;
+    border-color: #ff007f !important;
+}
+
+/* --- Sparkly Alphabet Pickers --- */
+.btn-pink-outline {
+    color: #ff007f !important;
+    border: 2px solid #ff69b4 !important;
+    background-color: #ffffff !important;
+    border-radius: 12px;
+    font-weight: 700;
+}
+
+.btn-outline-secondary {
+    color: #ff69b4 !important;
+    border: 2px solid #ffb6c1 !important;
+    background-color: #fff5f7 !important;
+    border-radius: 12px;
+    font-weight: 700;
+}
+.btn-outline-secondary:hover {
+    background-color: #ff69b4 !important;
+    color: white !important;
+}
+
+/* --- Beautiful Glamorous Pagination Fixes (No Grey!) --- */
+.pagination-girly-group {
+    border: 2px solid #ff69b4 !important;
+    border-radius: 30px !important;
+    background-color: #ffffff !important;
+    padding: 3px !important;
+    display: inline-flex !important;
+    overflow: hidden;
+}
+
+.pagination-girly-group .btn, 
+.pagination-girly-group button,
+.btn-nav-girly, 
+.btn-pink-light {
+    background: #fff0f5 !important;
+    color: #ff007f !important;
+    font-weight: 700 !important;
+    border: none !important;
+    padding: 6px 16px !important;
+    border-radius: 20px !important;
+    margin: 0 2px !important;
+    transition: all 0.2s ease;
+}
+
+.pagination-girly-group .btn:hover:not([disabled]), 
+.pagination-girly-group button:hover:not([disabled]),
+.btn-nav-girly:hover:not([disabled]) {
+    background: linear-gradient(45deg, #ff69b4, #ff007f) !important;
+    color: #ffffff !important;
+    transform: scale(1.05);
+}
+
+.pagination-girly-group .btn:disabled, 
+.pagination-girly-group button:disabled {
+    background: #ffffff !important;
+    color: #ffb6c1 !important;
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* --- Form Input Fields --- */
+.form-control, .form-select, .border, .border-secondary-subtle, .border-bottom {
+    border-color: #ffb6c1 !important;
+}
+.form-control, .form-select {
+    border: 2px solid #ffb6c1 !important;
+    border-radius: 16px !important;
+    background-color: #fffafb !important;
+    color: #ff007f !important;
+    font-weight: 600;
+}
+
+label, .text-secondary {
+    color: #ff007f !important;
+    font-weight: 700 !important;
+}
+
+/* --- Fixed Cradled Table Layout --- */
+.table {
+    --bs-table-hover-bg: #fff5f7;
+    --bs-table-striped-bg: #fffbfd;
+}
+
+/* 🌟 Pure White Table Header Text Over Diagonal Candy Gradient 🌟 */
+th {
+    background: linear-gradient(45deg, #ff69b4, #ff007f) !important;
+    font-family: 'Fredoka', sans-serif;
+    border-bottom: 3px solid #ff69b4 !important; 
+    padding: 14px 10px !important;
+}
+.th-sort-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #ffffff !important; 
+    text-decoration: none !important;
+    font-weight: 700;
+    width: 100%;
+    justify-content: center;
+}
+.th-sort-link-left {
+    justify-content: flex-start;
+}
+.sort-icon {
+    font-size: 0.8rem;
+    color: #ffffff !important;
+    background: rgba(255, 255, 255, 0.25);
+    padding: 4px 6px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+/* 🎀 SHARED PRINCESS CAPSULE TREATMENT (Used for state & date capsules) 🎀 */
+.girly-badge-pill {
+    background-color: #fff0f5 !important; 
+    color: #ff007f !important;          
+    border: 1.5px solid #ffb6c1 !important;
+    padding: 4px 14px;
+    border-radius: 14px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    box-shadow: 0 2px 6px rgba(255, 105, 180, 0.1);
+}
+
+/* Backward compatibility for state-bubble */
+.state-bubble {
+    border-radius: 14px;
+}
+
+/* 🌈 ORIGINAL BRIGHT TIMESTAMP SCALE COLORS */
+.bubble-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    box-shadow: 0 0 6px rgba(0, 0, 0, 0.15);
+}
+
+.bubble-rainbow-1 { background-color: #00e676; } /* Under 30 Days: Bright Green */
+.bubble-rainbow-2 { background-color: #ffea00; } /* 31 - 60 Days: Yellow */
+.bubble-rainbow-3 { background-color: #ff9100; } /* 61 - 90 Days: Orange */
+.bubble-rainbow-4 { background-color: #ff0055; } /* 91 - 120 Days: Red */
+.bubble-rainbow-5 { background-color: #aa00ff; } /* Over 120 Days: Purple */
+
+/* 💖 Beautiful Rich Pink Username Links 💖 */
+.girly-user-link {
+    color: #ff007f !important; 
+    font-weight: 700 !important;
+    text-decoration: none !important;
+}
+.girly-user-link:hover {
+    color: #ff69b4 !important; 
+    text-decoration: underline !important;
+}
+
+td {
+    color: #ff007f !important;
+    font-weight: 600;
+    border-bottom: 1px solid #ffe4e1 !important;
+}
+
+#buyersTableBody td,
+#tippersTableBody td {
+    padding: 6px 10px !important;
+}
+
+#buyersTableBody a,
+#tippersTableBody a {
+    color: #ff007f !important;
+}
+
+/* 🎀 GLAMOROUS CUSTOM PINK SCROLLBARS FOR APP TABLES & DROPDOWNS 🎀 */
+::-webkit-scrollbar {
+    width: 10px !important;
+    height: 10px !important;
+}
+::-webkit-scrollbar-track {
+    background: #fff5f7 !important;
+    border-radius: 10px !important;
+}
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(#ff69b4, #ff007f) !important;
+    border-radius: 10px !important;
+    border: 2px solid #fff5f7 !important;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #ff007f !important;
+}
+
+.table-responsive::-webkit-scrollbar {
+    width: 10px !important;
+    height: 10px !important;
+}
+.table-responsive::-webkit-scrollbar-track {
+    background: #fff5f7 !important;
+}
+.table-responsive::-webkit-scrollbar-thumb {
+    background: linear-gradient(#ff69b4, #ff007f) !important;
+    border-radius: 10px !important;
+}
+
+/* --- Expandable Filter Drawer Magic Animations --- */
+button[data-bs-toggle="collapse"] {
+    background: #ffffff !important;
+    border: 2px solid #ffb6c1 !important;
+    color: #ff007f !important;
+}
+
+button[data-bs-toggle="collapse"]:hover,
+button[data-bs-toggle="collapse"][aria-expanded="true"] {
+    background: linear-gradient(45deg, #fff0f5, #ffe4e1) !important;
+    border-color: #ff007f !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 20, 147, 0.15) !important;
+}
+
+.style-drawer-inner {
+    animation: drawerSlidIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.1);
+}
+
+@keyframes drawerSlidIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Change the search input placeholder text to pink */
+#tableSearchInput::placeholder {
+    color: #ff69b4 !important; /* Glamorous hot pink */
+    opacity: 1; /* Ensures the color shows at full strength in Firefox */
+}
+
+/* Optional: If you also want the magnifying glass icon to match perfectly */
+#glamFilterDrawerBuyers .fa-search,
+#glamFilterDrawerTippers .fa-search {
+    color: #ff69b4 !important;
+}

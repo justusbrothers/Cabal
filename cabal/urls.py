@@ -3,6 +3,7 @@
 from django.urls import path
 
 from .views import (
+    CustomerExporterView,
     CustomerOrders,
     LookupPacksApiView,
     LunarParser,
@@ -13,6 +14,7 @@ from .views import (
 app_name = "cabal"
 
 urlpatterns = [
+    path("customerexporter/", CustomerExporterView.as_view(), name="customerexporter"),
     path("customerorders/", CustomerOrders, name="customerorders"),
     path("lunarparser/", LunarParser.as_view(), name="lunarparser"),
     path("spectacle/", Spectacle.as_view(), name="spectacle"),

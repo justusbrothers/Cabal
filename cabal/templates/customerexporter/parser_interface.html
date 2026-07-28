@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Whatnot Customer Exporter</title>
+
+    {% load static %}
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="{% static 'plugins/cabal/cabal/css/customerexporter/style.css' %}" rel="stylesheet">
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+    <script>
+        window.ExporterConfig = {
+            uploadUrl: "{% url 'plugin:cabal:customerexporter' %}",
+            csrfToken: "{{ csrf_token }}"
+        };
+    </script>
+</head>
+<body>
+
+    <div class="container py-5 position-relative">
+        
+        <div class="card rounded p-3 mb-3 shadow-sm" style="background-color: #fff0f5;">
+            <div class="card-header pb-2 mb-3 bg-transparent p-0 border-0 d-flex justify-content-center">
+                <h1 class="m-0 text-primary">
+                    <i class="fas fa-heart fa-beat me-2" style="color: #ff007f;"></i> 
+                    Whatnot Customer Exporter 
+                    <i class="fas fa-heart fa-beat ms-2" style="color: #ff007f;"></i>
+                </h1>
+            </div>
+
+            <div class="card-body p-0">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="card h-100 border-0 shadow-sm">
+                            <div class="card-body d-flex align-items-center justify-content-between py-3">
+                                <div>
+                                    <h6 class="text-uppercase fw-bold mb-1 style-title" style="font-size: 0.85rem; color: #ff007f; letter-spacing: 0.5px;">✨ Glamorous Buyers ✨</h6>
+                                    <h3 class="mb-0 fw-extrabold" id="buyerCountDisplay" style="color: #ff69b4;">0</h3>
+                                </div>
+                                <div class="fs-1">🛍️</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card h-100 border-0 shadow-sm">
+                            <div class="card-body d-flex align-items-center justify-content-between py-3">
+                                <div>
+                                    <h6 class="text-uppercase fw-bold mb-1 style-title" style="font-size: 0.85rem; color: #ff007f; letter-spacing: 0.5px;">💖 Generous Tippers 💖</h6>
+                                    <h3 class="mb-0 fw-extrabold" id="tipperCountDisplay" style="color: #da70d6;">0</h3>
+                                </div>
+                                <div class="fs-1">👑</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card rounded p-3 mb-3 shadow-sm">
+            <div class="card-body p-0">
+                <p>Drop your massive Whatnot Earnings CSV export file below. The engine chunks data on the fly inside IndexedDB to secure fast deduplication without blowing up browser tab memory limits.</p>
+                
+                <div class="form-group mb-3">
+                    <label for="csvFile" class="form-label">Select Whatnot Earnings CSV:</label>
+                    <input type="file" id="csvFile" class="form-control" accept=".csv" multiple />
+                </div>
+                
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div class="d-flex gap-2">
+                        <button id="processBtn" class="btn btn-primary"><i class="fas fa-magic me-1"></i> Parse & Process CSV</button>
+                        <button id="exportBtn" class="btn btn-success" disabled><i class="fas fa-file-excel me-1"></i> Download Excel Report</button>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="handleDeleteDatabase()"><i class="fas fa-trash-alt me-1"></i> Clear Data Cache</button>
+                </div>
+                
+                <div id="statusMessage" class="alert alert-info mt-3" style="display:none; border-radius: 15px; font-weight: bold;"></div>
+            </div>
+        </div>
+
+        <div id="msgViewerCard" class="card p-3 mb-3 shadow-sm">
+            <div class="card p-3 border-0 shadow-sm mb-2" style="background-color: #fff0f5;">
+                <div class="row g-3 align-items-top mb-3">
+                    <div class="col-md-4">
+                        <label for="showDatePicker" class="form-label small mb-1">🗓️ Target Show Date & Time:</label>
+                        <input type="datetime-local" id="showDatePicker" class="form-control form-control-sm" onchange="updateLiveDatePreview()">
+                        <div id="liveDatePreview" class="small fw-semibold mt-1" style="font-size: 0.8rem; color: #ff007f !important;"></div>
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label small mb-1">⚡ Quick Action Templates (Click to apply):</label>
+                        <div class="d-flex flex-wrap gap-2">
+                            <button type="button" class="btn btn-pink-outline btn-sm px-2 py-1" onclick="applyQuickTemplate(1)">
+                                <i class="fas fa-bullhorn me-1"></i> Next Show Promo
+                            </button>
+                            <button type="button" class="btn btn-pink-outline btn-sm px-2 py-1" onclick="applyQuickTemplate(2)">
+                                <i class="fas fa-heart me-1" style="color: #ff007f;"></i> First Purchase
+                            </button>
+                            <button type="button" class="btn btn-pink-outline btn-sm px-2 py-1" onclick="applyQuickTemplate(3)">
+                                <i class="fas fa-bell-concierge me-1" style="color: #ff007f;"></i> 1.5K Sellabration
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <label for="bossLadyMessage" class="form-label small mb-1">
+                    👑 Boss Lady's Message Template <span class="fw-normal" style="color: #ff69b4;">(Will auto-copy to clipboard when clicking any user link below)</span>
+                </label>
+                <textarea id="bossLadyMessage" class="form-control form-control-sm" rows="2" placeholder="Hey! Thanks so much for hanging out in our stream and supporting Just Us Brothers! Your goodies are packed up and ready to head out..."></textarea>
+                <div class="mt-2">
+                    <label for="bossLadyShowLink" class="form-label text-muted small" style="font-weight: 700;">📺 Live Show Link (Optional Header)</label>
+                    <input type="url" id="bossLadyShowLink" class="form-control form-control-sm" placeholder="https://www.whatnot.com/live/..." style="border: 1px solid #ffb6c1;">
+                </div>
+            </div>
+        </div>
+
+        <div id="dataViewerCard" class="card p-3 mb-3 shadow-sm d-none">
+            <div class="border-bottom mb-3 pb-3">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <ul class="nav nav-tabs border-0" id="viewerTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active me-2" id="buyers-tab" data-bs-toggle="tab" data-bs-target="#buyers-panel" type="button" role="tab">
+                                <i class="fas fa-shopping-bag me-1"></i> Buyers List
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="tippers-tab" data-bs-toggle="tab" data-bs-target="#tippers-panel" type="button" role="tab">
+                                <i class="fas fa-crown me-1"></i> Tippers List
+                            </button>
+                        </li>
+                    </ul>
+
+                    <button class="btn btn-sm btn-pink-outline px-3 py-2 d-inline-flex align-items-center gap-2 rounded-pill shadow-sm" 
+                            type="button" 
+                            data-bs-toggle="collapse" 
+                            data-bs-target=".multi-collapse" 
+                            aria-expanded="false"
+                            style="transition: all 0.3s ease;">
+                        <i class="fas fa-heart" style="color: #ff007f;"></i> 
+                        <span style="font-weight: 700; font-size: 0.85rem;">Filter & Search Magic ✨</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="tab-content" id="viewerTabsContent">
+                
+                <div class="tab-pane fade show active" id="buyers-panel" role="tabpanel">
+                    <div class="collapse multi-collapse" id="glamFilterDrawerBuyers">
+                        <div class="card p-3 mb-3 bg-light border-0 style-drawer-inner" style="border-radius: 18px !important; background-color: #fffafb !important; border: 2px dashed #ffb6c1 !important;">
+                            <div class="row g-2 align-items-center mb-2">
+                                <div class="col-md-4 col-sm-12">
+                                    <div class="position-relative">
+                                        <span class="position-absolute top-50 start-0 translate-middle-y ms-3 small">
+                                            <i class="fas fa-search" style="color: #ff69b4;"></i>
+                                        </span>
+                                        <input type="text" id="tableSearchInput" class="form-control form-control-sm ps-5 rounded-pill" placeholder="Search by username..." style="height: 36px; font-size: 0.85rem;">
+                                    </div>
+                                </div>
+                                <div class="col-md-6 col-sm-12 d-flex gap-2 align-items-center justify-content-center flex-wrap">
+                                    <span class="small fw-bold text-muted me-1">Filter Time:</span>
+                                    <button class="btn p-0 bubble-indicator bubble-rainbow-1" title="Under 30 Days" onclick="toggleBubbleFilter('buyers', 1, this)" style="width: 22px; height: 22px; border: 2px solid transparent;"></button>
+                                    <button class="btn p-0 bubble-indicator bubble-rainbow-2" title="31 - 60 Days" onclick="toggleBubbleFilter('buyers', 2, this)" style="width: 22px; height: 22px; border: 2px solid transparent;"></button>
+                                    <button class="btn p-0 bubble-indicator bubble-rainbow-3" title="61 - 90 Days" onclick="toggleBubbleFilter('buyers', 3, this)" style="width: 22px; height: 22px; border: 2px solid transparent;"></button>
+                                    <button class="btn p-0 bubble-indicator bubble-rainbow-4" title="91 - 120 Days" onclick="toggleBubbleFilter('buyers', 4, this)" style="width: 22px; height: 22px; border: 2px solid transparent;"></button>
+                                    <button class="btn p-0 bubble-indicator bubble-rainbow-5" title="Over 120 Days" onclick="toggleBubbleFilter('buyers', 5, this)" style="width: 22px; height: 22px; border: 2px solid transparent;"></button>
+                                </div>
+                                <div class="col-md-2 col-sm-12">
+                                    <div class="d-flex align-items-center gap-2 justify-content-md-end">
+                                        <label for="entriesPerPageBuyers" class="small text-nowrap mb-0">Show:</label>
+                                        <select id="entriesPerPageBuyers" class="form-select form-select-sm rounded-pill" style="height: 36px;">
+                                            <option value="10" selected>10 rows</option>
+                                            <option value="25">25 rows</option>
+                                            <option value="50">50 rows</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row g-2 align-items-center">
+                                <div class="col-md-12 d-flex flex-wrap gap-1 align-items-center justify-content-center justify-content-md-start" id="alphabetPickerBuyers"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive border rounded bg-white" style="max-height: 525px; overflow-y: auto;">
+                        <table class="table table-hover align-middle mb-0 small">
+                            <thead class="sticky-top">
+                                <tr>
+                                    <th style="cursor: pointer; width: 45%;" onclick="sortData('buyers', 'BUYER_NAME')">
+                                        <div class="th-sort-link th-sort-link-left">
+                                            <span>Buyer Username</span>
+                                            <span id="sort_buyers_BUYER_NAME" class="sort-icon"><i class="fas fa-sort"></i></span>
+                                        </div>
+                                    </th>
+                                    <th class="text-center" style="cursor: pointer; width: 15%;" onclick="sortData('buyers', 'STATE')">
+                                        <div class="th-sort-link">
+                                            <span>State</span>
+                                            <span id="sort_buyers_STATE" class="sort-icon"><i class="fas fa-sort"></i></span>
+                                        </div>
+                                    </th>
+                                    <th class="text-center" style="cursor: pointer; width: 40%;" onclick="sortData('buyers', 'LAST_TRANSACTION')">
+                                        <div class="th-sort-link">
+                                            <span>Last Seen Transaction</span>
+                                            <span id="sort_buyers_LAST_TRANSACTION" class="sort-icon"><i class="fas fa-sort"></i></span>
+                                        </div>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody id="buyersTableBody"></tbody>
+                        </table>
+                    </div>
+                    <div id="paginationBuyers" class="mt-3"></div>
+                </div>
+                
+                <div class="tab-pane fade" id="tippers-panel" role="tabpanel">
+                    <div class="collapse multi-collapse" id="glamFilterDrawerTippers">
+                        <div class="card p-3 mb-3 bg-light border-0 style-drawer-inner" style="border-radius: 18px !important; background-color: #fffafb !important; border: 2px dashed #ffb6c1 !important;">
+                            <div class="row g-2 align-items-center mb-2">
+                                <div class="col-md-4 col-sm-12">
+                                    <div class="position-relative">
+                                        <span class="position-absolute top-50 start-0 translate-middle-y ms-3 small">
+                                            <i class="fas fa-search" style="color: #ff69b4;"></i>
+                                        </span>
+                                        <input type="text" oninput="document.getElementById('tableSearchInput').value = this.value; document.getElementById('tableSearchInput').dispatchEvent(new Event('input'));" class="form-control form-control-sm ps-5 rounded-pill" placeholder="Search by username..." style="height: 36px; font-size: 0.85rem;">
+                                    </div>
+                                </div>
+                                <div class="col-md-6 col-sm-12"></div>
+                                <div class="col-md-2 col-sm-12">
+                                    <div class="d-flex align-items-center gap-2 justify-content-md-end">
+                                        <label for="entriesPerPageTippers" class="small text-nowrap mb-0">Show:</label>
+                                        <select id="entriesPerPageTippers" class="form-select form-select-sm rounded-pill" style="height: 36px;">
+                                            <option value="10" selected>10 rows</option>
+                                            <option value="25">25 rows</option>
+                                            <option value="50">50 rows</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row g-2 align-items-center">
+                                <div class="col-md-12 d-flex flex-wrap gap-1 align-items-center justify-content-center justify-content-md-start" id="alphabetPickerTippers"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive border rounded bg-white" style="max-height: 525px; overflow-y: auto;">
+                        <table class="table table-hover align-middle mb-0 small">
+                            <thead class="sticky-top">
+                                <tr>
+                                    <th style="cursor: pointer; width: 45%;" onclick="sortData('tippers', 'BUYER_NAME')">
+                                        <div class="th-sort-link th-sort-link-left">
+                                            <span>Tipper Username</span>
+                                            <span id="sort_tippers_BUYER_NAME" class="sort-icon"><i class="fas fa-sort"></i></span>
+                                        </div>
+                                    </th>
+                                    <th class="text-center" style="cursor: pointer; width: 15%;" onclick="sortData('tippers', 'STATE')">
+                                        <div class="th-sort-link">
+                                            <span>State</span>
+                                            <span id="sort_tippers_STATE" class="sort-icon"><i class="fas fa-sort"></i></span>
+                                        </div>
+                                    </th>
+                                    <th class="text-center" style="cursor: pointer; width: 40%;" onclick="sortData('tippers', 'LAST_TRANSACTION')">
+                                        <div class="th-sort-link">
+                                            <span>Last Seen Transaction</span>
+                                            <span id="sort_tippers_LAST_TRANSACTION" class="sort-icon"><i class="fas fa-sort"></i></span>
+                                        </div>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody id="tippersTableBody"></tbody>
+                        </table>
+                    </div>
+                    <div id="paginationTippers" class="mt-3"></div>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+    <script src="{% static 'plugins/cabal/cabal/js/customerexporter/config.js' %}"></script>
+    <script src="{% static 'plugins/cabal/cabal/js/customerexporter/helpers.js' %}"></script>
+    <script src="{% static 'plugins/cabal/cabal/js/customerexporter/db.js' %}"></script>
+    <script src="{% static 'plugins/cabal/cabal/js/customerexporter/app.js' %}"></script>
+</body>
+</html>
