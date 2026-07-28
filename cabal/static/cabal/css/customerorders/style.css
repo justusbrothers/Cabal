@@ -1,0 +1,202 @@
+body { background-color: var(--bs-body-bg); transition: background-color 0.2s ease, color 0.2s ease; }
+.card { border-radius: 10px; border: none; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: background-color 0.2s ease; }
+
+/* Theme responsive Dropzone */
+[data-bs-theme="light"] .drop-zone { border: 2px dashed #0d6efd; background-color: #f1f7ff; }
+[data-bs-theme="light"] .drop-zone:hover { background-color: #e3efff; }
+[data-bs-theme="dark"] .drop-zone { border: 2px dashed #398bf7; background-color: #1a2436; }
+[data-bs-theme="dark"] .drop-zone:hover { background-color: #22324d; }
+.drop-zone { border-radius: 8px; cursor: pointer; transition: 0.2s; }
+
+/* Segmented Capsule Tabs */
+.dank-tabs-track {
+  background-color: var(--bs-secondary-bg);
+  padding: 4px;
+  border-radius: 10px;
+  display: inline-flex;
+  gap: 4px;
+}
+.dank-tabs-track .nav-link {
+  border: none !important;
+  border-radius: 7px !important;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--bs-secondary-color);
+  transition: all 0.15s ease-in-out;
+}
+.dank-tabs-track .nav-link:hover {
+  color: var(--bs-body-color);
+  background-color: rgba(255, 255, 255, 0.05);
+}
+[data-bs-theme="light"] .dank-tabs-track .nav-link:hover {
+  background-color: rgba(0, 0, 0, 0.03);
+}
+.dank-tabs-track .nav-link.active {
+  background-color: var(--bs-body-bg) !important;
+  color: var(--bs-primary) !important;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.08) !important;
+}
+[data-bs-theme="dark"] .dank-tabs-track .nav-link.active {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* Base tight table layout (5 columns: FOC is hidden) */
+.table-tight {
+  table-layout: fixed !important;
+  width: 100% !important;
+}
+
+/* Style clickable inner table headers */
+.table-tight thead th.sortable-header {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s ease;
+}
+
+.table-tight thead th.sortable-header:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+[data-bs-theme="dark"] .table-tight thead th.sortable-header:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Base columns (FOC Hidden) */
+.table-tight th:nth-child(1), .table-tight td:nth-child(1) { width: 5%; text-align: center; }  /* Checkbox */
+.table-tight th:nth-child(2), .table-tight td:nth-child(2) { width: 10%; }                   /* Qty */
+.table-tight th:nth-child(3), .table-tight td:nth-child(3) { width: 47%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; } /* Title */
+.table-tight th:nth-child(4), .table-tight td:nth-child(4) { width: 16%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; } /* Publisher */
+.table-tight th:nth-child(5), .table-tight td:nth-child(5) { width: 14%; }                   /* Code / UPC */
+.table-tight th:nth-child(6), .table-tight td:nth-child(6) { width: 8%; text-align: right; }  /* Price */
+
+/* Adjusted columns when FOC is active (6 columns total) */
+.table-tight.show-foc th:nth-child(1), .table-tight.show-foc td:nth-child(1) { width: 5%; text-align: center; }  /* Checkbox */
+.table-tight.show-foc th:nth-child(2), .table-tight.show-foc td:nth-child(2) { width: 10%; }                   /* Qty */
+.table-tight.show-foc th:nth-child(3), .table-tight.show-foc td:nth-child(3) { width: 37%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; } /* Title (Slightly squeezed) */
+.table-tight.show-foc th:nth-child(4), .table-tight.show-foc td:nth-child(4) { width: 15%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; } /* Publisher */
+.table-tight.show-foc th:nth-child(5), .table-tight.show-foc td:nth-child(5) { width: 13%; }                   /* FOC Date (New!) */
+.table-tight.show-foc th:nth-child(6), .table-tight.show-foc td:nth-child(6) { width: 12%; }                   /* Code / UPC */
+.table-tight.show-foc th:nth-child(7), .table-tight.show-foc td:nth-child(7) { width: 8%; text-align: right; }  /* Price */
+
+.filter-badge { font-size: 0.95rem; }
+
+/* Theme responsive Clickable Table Rows and Detail Drawers */
+.clickable-row { cursor: pointer; transition: background-color 0.15s ease-in-out; }
+[data-bs-theme="light"] .clickable-row:hover { background-color: #f1f7ff !important; }
+[data-bs-theme="dark"] .clickable-row:hover { background-color: #243042 !important; }
+
+.drawer-row td { padding: 0 !important; border: none; }
+.drawer-content { border-left: 4px solid #0d6efd; padding: 12px 20px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); transition: background-color 0.2s ease; }
+[data-bs-theme="light"] .drawer-content { background-color: #fafbfc; }
+[data-bs-theme="dark"] .drawer-content { background-color: #1e242b; }
+
+.drawer-label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; color: var(--bs-secondary-color); margin-bottom: 2px; }
+
+/* Theme Toggle Switch Area */
+.theme-switch-wrapper { position: absolute; top: 20px; right: 20px; display: flex; align-items: center; gap: 8px; }
+
+/* Visual tracking status for checklist */
+.row-checked {
+  opacity: 0.45;
+  text-decoration: line-through;
+  background-color: var(--bs-tertiary-bg) !important;
+  transition: all 0.25s ease-in-out;
+}
+
+/* Strikethrough for checked customer badges in Master Drawer view */
+.badge-checked {
+  text-decoration: line-through;
+  opacity: 0.5;
+}
+
+/* Interactive downloads header */
+.downloads-toggle-header {
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 0.15s ease;
+}
+.downloads-toggle-header:hover {
+  opacity: 0.85;
+}
+
+/* --- ACCORDION RESET (No Shifting, No Default Blue State) --- */
+
+/* Complete focus & outline reset */
+.accordion-button:focus {
+  box-shadow: none !important;
+  outline: none !important;
+  border-color: rgba(0, 0, 0, 0.125) !important;
+}
+
+/* Restore the classic blue highlight on active/expanded accordion buttons */
+.accordion-button:not(.collapsed) {
+  background-color: var(--bs-primary-border-subtle, #e3efff) !important; /* Soft blue background */
+  color: var(--bs-primary, #0d6efd) !important;                         /* Bold blue text */
+  box-shadow: inset 0 -1px 0 rgba(0,0,0,.125);
+}
+
+/* Make sure the active arrow icon also turns blue */
+.accordion-button:not(.collapsed)::after {
+  filter: invert(38%) sepia(98%) saturate(1915%) hue-rotate(202deg) brightness(101%) contrast(106%);
+}
+
+/* --- ACCORDION RESET END --- */
+
+/* Add hover effects for the external search links */
+.hover-link:hover {
+  filter: brightness(0.85);
+  transition: filter 0.15s ease-in-out;
+}
+
+/* Container wrapper to enforce rounded corners safely */
+.table-responsive, 
+.table-container {
+  border-radius: 8px !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+/* Force border-radius containment directly on the table wrapper */
+.table {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  border: none !important; /* Let the wrapper handle the outer border */
+}
+
+/* Keep the top-left and top-right headers neatly tucked inside the curve */
+.table thead tr:first-child th:first-child {
+  border-top-left-radius: 8px;
+}
+.table thead tr:first-child th:last-child {
+  border-top-right-radius: 8px;
+}
+
+/* Remove rounded corners on the accordion container and items */
+#customerAccordion,
+#customerAccordion .accordion-item,
+#customerAccordion .accordion-item:first-of-type,
+#customerAccordion .accordion-item:first-of-type .accordion-button,
+#customerAccordion .accordion-item:last-of-type,
+#customerAccordion .accordion-item:last-of-type .accordion-button {
+  border-radius: 0 !important;
+}
+
+/* Style the custom header to match the accordion button's padding and border */
+.custom-sort-header {
+  padding: 0.75rem 2.5rem 0.75rem 1.25rem !important;
+  border: 1px solid var(--bs-border-color);
+  border-bottom: 2px solid var(--bs-accordion-active-color, #0c63e4); /* Darker blue accent line */
+  border-radius: 0 !important;
+  
+  /* Pull active accordion theme colors dynamically */
+  background-color: var(--bs-accordion-active-bg, #e7f1ff) !important;
+  color: var(--bs-accordion-active-color, #0c63e4) !important;
+}
+
+/* Make sure the clickable headers and icons use the active blue text color */
+.custom-sort-header th,
+.custom-sort-header div {
+  font-size: 0.95rem;
+  font-weight: 600;
+}

@@ -1,15 +1,19 @@
-############ cabal/urls.py ############
+# cabal/urls.py
 
 from django.urls import path
 
-from cabal.vanguard.views import LookupPacksApiView, Vanguard
-from .lunarparser import LunarParser
-from .spectacle import Spectacle
-
+from .views import (
+    CustomerOrders,
+    LookupPacksApiView,
+    LunarParser,
+    Spectacle,
+    Vanguard,
+)
 
 app_name = "cabal"
 
 urlpatterns = [
+    path("customerorders/", CustomerOrders, name="customerorders"),
     path("lunarparser/", LunarParser.as_view(), name="lunarparser"),
     path("spectacle/", Spectacle.as_view(), name="spectacle"),
     path("vanguard/", Vanguard.as_view(), name="vanguard"),
