@@ -55,7 +55,7 @@
                            document.getElementById("data_point")?.value || "";
 
         // Build URL using base Django href
-        const pdfUrl = new URL("{% url 'plugin:syncroth:weekly_report_pdf' %}", window.location.origin);
+        const pdfUrl = new URL("{% url 'plugin:cabal:weekly_report_pdf' %}", window.location.origin);
         
         if (ipn_list) pdfUrl.searchParams.set("ipn_list", ipn_list);
         if (location) pdfUrl.searchParams.set("location", location);

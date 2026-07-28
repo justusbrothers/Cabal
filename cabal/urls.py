@@ -10,6 +10,7 @@ from .views import (
     LunarParser,
     Spectacle,
     Vanguard,
+    WeeklyReportPDFView,
 )
 
 app_name = "cabal"
@@ -25,5 +26,10 @@ urlpatterns = [
         "vanguard/api/lookup-packs/",
         LookupPacksApiView.as_view(),
         name="lookup_packs_api",
+    ),
+    path(
+        "syncroth/weekly-report-pdf/",
+        WeeklyReportPDFView.as_view(),
+        name="weekly_report_pdf",
     ),
 ]
