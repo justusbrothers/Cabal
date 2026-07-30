@@ -31,6 +31,8 @@ from reportlab.platypus import (
 from .flowables import PrintableCheckbox
 from .helpers import VanguardParser
 
+from cabal.utils import clean_text
+
 
 class LookupPacksApiView(APIView):
     """API endpoint to look up IPNs by date and recommend available cover packs."""
@@ -195,12 +197,18 @@ class Vanguard(View):
 
         items = []
         for ipn in parsed_ipns:
-            formatted_title = VanguardParser.get_inventree_part_name(ipn)
+            raw_title = VanguardParser.get_inventree_part_name(ipn)
+
+            # Apply global helper here!
+            formatted_title = clean_text(raw_title)
+
             items.append({"IPN": ipn, "Title": formatted_title, "Description": ""})
 
         for pack_line in parsed_packs:
             pack_item = VanguardParser.parse_pack_entry(pack_line)
             if pack_item:
+                # Clean pack titles as well
+                pack_item["Title"] = clean_text(pack_item.get("Title", ""))
                 items.append(pack_item)
 
         # --- PDF Generation Pipeline ---

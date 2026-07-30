@@ -1,4 +1,4 @@
-# cabal/views/lunarparser.py
+# cabal/views/nexus.py
 
 import logging
 import re
@@ -13,14 +13,16 @@ from django.views import View
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.http import HttpResponse
 
+from cabal.utils import clean_text
+
 logger = logging.getLogger("inventree")
 
 
 @method_decorator(xframe_options_sameorigin, name="dispatch")
-class LunarParser(View):
+class NexusView(View):
     """Lunar & Penguin Distributor CSV Parser & UPC Validator"""
 
-    template_name = "lunarparser/lunarparser.html"
+    template_name = "nexus/nexus.html"
 
     def get(self, request):
         if request.GET.get("download") == "excel":
@@ -176,6 +178,15 @@ class LunarParser(View):
         df = pd.read_csv(StringIO("\n".join(data_lines)), dtype=str)
 
         # -----------------------------------------------------------------
+        # GLOBAL SANITIZER INJECTION (BEFORE PART CREATION / MERGING)
+        # -----------------------------------------------------------------
+        # Clean string columns right at ingestion to catch bad encoding/Mojibake
+        text_cols = ["Title", "Description", "Name", "Category", "Publisher"]
+        for col in text_cols:
+            if col in df.columns:
+                df[col] = df[col].astype(str).apply(clean_text)
+
+        # -----------------------------------------------------------------
         # NEW HEADERS NORMALIZATION BLOCK
         # -----------------------------------------------------------------
         # If it's a Penguin file, seamlessly rewrite headers to look like Lunar.
@@ -291,6 +302,10 @@ class LunarParser(View):
                     grouped[col] = ""
 
             grouped = grouped.reindex(columns=lunar_columns)
+
+        # Ensure titles stay sanitized after any grouping/reindexing operations
+        if "Title" in grouped.columns:
+            grouped["Title"] = grouped["Title"].astype(str).apply(clean_text)
 
         # -----------------------------------------------------------------
         # ADVANCED VARIANT MATRIX SORTING ENGINE (Python/Pandas)

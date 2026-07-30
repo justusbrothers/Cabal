@@ -236,7 +236,7 @@ class InvenTreeBatchProcessor {
                         part: partId,
                         quantity: payload.stock.quantity,
                         location: location_id,
-                        notes: `Ingested via LunarParser batch. Condition: ${payload.metadata.condition || "NM"}`
+                        notes: `Ingested via Nexus batch. Condition: ${payload.metadata.condition || "NM"}`
                     })
                 });
             }

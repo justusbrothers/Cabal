@@ -2,7 +2,7 @@
 // INDEXEDDB CONFIGURATION & HANDLERS
 // ==========================================
 window.db = null;
-const dbName = "LunarParserDB";
+const dbName = "NexusDB";
 const storeName = "orders";
 
 const dbRequest = indexedDB.open(dbName, 1);

@@ -111,8 +111,8 @@
         <div class="portal-title">CABAL PORTAL</div>
         <ul class="nav-tabs" id="tabList">
             <li>
-                <button class="nav-tab-btn" data-target="tab-lunar">
-                    Lunar Parser
+                <button class="nav-tab-btn active" data-target="tab-nexus">
+                    Nexus
                 </button>
             </li>
             <li>
@@ -121,7 +121,7 @@
                 </button>
             </li>
             <li>
-                <button class="nav-tab-btn active" data-target="tab-syncroth">
+                <button class="nav-tab-btn" data-target="tab-syncroth">
                     Syncroth
                 </button>
             </li>
@@ -145,9 +145,9 @@
 
     <main class="portal-viewport">
         <iframe 
-            id="tab-lunar" 
-            class="tab-panel" 
-            src="{% url 'plugin:cabal:lunarparser' %}"
+            id="tab-nexus" 
+            class="tab-panel active" 
+            src="{% url 'plugin:cabal:nexus' %}"
             loading="lazy">
         </iframe>
 
@@ -160,7 +160,7 @@
 
         <iframe 
             id="tab-syncroth" 
-            class="tab-panel active" 
+            class="tab-panel" 
             src="{% url 'plugin:cabal:datatool' %}"
             loading="lazy">
         </iframe>

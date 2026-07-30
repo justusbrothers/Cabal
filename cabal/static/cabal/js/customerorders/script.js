@@ -78,7 +78,7 @@ tabElements.forEach(tab => {
 // INDEXEDDB CONFIGURATION & HANDLERS
 // ==========================================
 let db;
-const dbName = "LunarParserDB";
+const dbName = "NexusDB";
 const storeName = "orders";
 
 const dbRequest = indexedDB.open(dbName, 1);

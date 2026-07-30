@@ -3,84 +3,23 @@
 import csv
 import io
 import re
-import unicodedata
 from datetime import datetime
 
-
-def clean_syncroth_text(text: str) -> str:
-    """Fixes Mojibake character encoding issues and standardizes unicode/casing
-
-    for creator names, titles, and descriptions.
-    """
-    if not text or not isinstance(text, str):
-        return text if text is not None else ""
-
-    # Step 1: Repair double-encoded UTF-8 / Latin-1 byte corruption (Mojibake)
-    try:
-        text = text.encode("latin-1").decode("utf-8")
-    except (UnicodeEncodeError, UnicodeDecodeError):
-        pass
-
-    # Step 2: Normalize Unicode canonical composition (NFC form)
-    text = unicodedata.normalize("NFC", text)
-
-    # Step 3: Fix mid-word casing corruption (e.g. "JiméNez" -> "Jiménez")
-    # Only applies to words with mixed casing inside words
-    def fix_word_case(match):
-        w = match.group(0)
-        # If the word is entirely uppercase (e.g. "IPN", "UPC", "DC"), keep it upper
-        if w.isupper() and len(w) <= 3:
-            return w
-        return w[0].upper() + w[1:].lower()
-
-    # Replaces words that have irregular capitalization while preserving spaces & punctuation
-    text = re.sub(r"\b[a-zA-Z\u00C0-\u024F]+\b", fix_word_case, text)
-
-    return text.strip()
-
-
-def normalize_title_trailing_the(title: str) -> str:
-    """Ensures 'The' is moved from the front of the series name to right before issue numbers
-    or cover/variant descriptions.
-
-    Examples:
-        'The Walking Dead #1 - Cover B' -> 'Walking Dead, The #1 - Cover B'
-        'The Batman #50'                -> 'Batman, The #50'
-        'The Avengers'                  -> 'Avengers, The'
-    """
-    if not title:
-        return ""
-
-    # First clean character encodings and casing
-    title = clean_syncroth_text(title)
-
-    # 1. Match 'The <Series Name>' followed by '#', 'Vol.', '-', or end of string
-    # Captures: Group 1 = Series Name, Group 2 = Rest of title starting with separator
-    title_pattern = re.compile(
-        r"^The\s+(.+?)(\s*(?:#|Vol\.|-|\bCover\b).*|$)", re.IGNORECASE
-    )
-
-    if title_pattern.search(title):
-        title = title_pattern.sub(r"\1, The\2", title)
-
-    # 2. Clean up any double spaces or awkward spacing around commas
-    title = re.sub(r"\s*,\s*", ", ", title)
-    title = re.sub(r"\s+", " ", title)
-
-    return title.strip()
+from cabal.utils import normalize_title_trailing_the
 
 
 def build_descriptiononly_data_file(items, request=None):
     output = io.StringIO()
     writer = csv.writer(output, quoting=csv.QUOTE_MINIMAL)
     writer.writerow(["pk", "IPN", "Name", "Description"])
+
     for item in items:
         part = item.part if hasattr(item, "part") else item
         writer.writerow([
             part.pk,
             part.IPN,
-            clean_syncroth_text(part.name),
-            clean_syncroth_text(part.description),
+            part.name,
+            part.description,
         ])
     return output.getvalue()
 
@@ -88,6 +27,7 @@ def build_descriptiononly_data_file(items, request=None):
 def build_inventree_data_file(items, request=None):
     output = io.StringIO()
     writer = csv.writer(output)
+
     writer.writerow([
         "pk",
         "IPN",
@@ -103,6 +43,7 @@ def build_inventree_data_file(items, request=None):
         "ID",
         "Variant Of",
     ])
+
     for item in items:
         part = item.part if hasattr(item, "part") else item
         writer.writerow([
@@ -110,16 +51,17 @@ def build_inventree_data_file(items, request=None):
             part.IPN,
             part.active,
             part.category.pk if part.category else "",
-            clean_syncroth_text(part.category.name if part.category else ""),
+            part.category.name if part.category else "",
             part.default_location.pk if part.default_location else "",
-            clean_syncroth_text(part.description),
+            part.description,
             part.image,
             part.is_template,
             part.link,
-            clean_syncroth_text(part.name),
+            part.name,
             part.pk,
             part.variant_of.pk if part.variant_of else "",
         ])
+
     return output.getvalue()
 
 
@@ -130,6 +72,7 @@ def build_whatnot_data_file(
     whatnot_listing_type="Auction",
 ):
     custom_suffix = ""
+
     if request:
         custom_suffix = (
             request.POST.get("whatnot_custom_suffix", "").strip()
@@ -138,6 +81,7 @@ def build_whatnot_data_file(
 
     output = io.StringIO()
     writer = csv.writer(output)
+
     writer.writerow([
         "Category",
         "Sub Category",
@@ -174,8 +118,6 @@ def build_whatnot_data_file(
         if not text:
             return ""
 
-        text = clean_syncroth_text(text)
-
         def date_tag_replacer(match):
             iso_date = match.group(1)
             formatted_date = format_date_str(iso_date)
@@ -210,6 +152,7 @@ def build_whatnot_data_file(
 
     for item in items:
         part = getattr(item, "part", item)
+
         if hasattr(part, "_is_pack_inheritance") and hasattr(part, "_pack_components"):
             pack_multiplier = getattr(part, "_pack_qty", 1)
             upper_clean_ipn = part.IPN.upper()
@@ -262,7 +205,7 @@ def build_whatnot_data_file(
                     else:
                         inferred_book_count = 1
 
-        price = 0.0  # Safe price default
+        price = 0.0
 
         if is_pack:
             price_names = (
@@ -328,9 +271,7 @@ def build_whatnot_data_file(
                 else:
                     variant_detail = f"Cover {cover_letter}"
 
-                desc_parts.append(
-                    f"{pack_qty}x {clean_syncroth_text(variant_detail)}".strip()
-                )
+                desc_parts.append(f"{pack_qty}x {variant_detail}".strip())
 
             # 2. Second attempt: If components had no prices, check the Pack PART itself
             if price == 0.0:
@@ -358,7 +299,7 @@ def build_whatnot_data_file(
 
             if book_count == 5 and is_explicit_5pack:
                 cover_display = getattr(part, "_pack_display_name", "5 Issues")
-                title = f"WhatNot Host Booster Pack - 5 Issues - {clean_syncroth_text(cover_display)}"
+                title = f"WhatNot Host Booster Pack - 5 Issues - {cover_display}"
 
                 if len(part._pack_components) > 0:
                     first_comp = part._pack_components[0]
@@ -457,7 +398,6 @@ def build_whatnot_data_file(
             imgs.append("")
         imgs = imgs[:8]
 
-        # FIXED: Safe price formatting (handles float/int properly)
         formatted_price = str(round(price)) if price > 0 else ""
 
         print(
@@ -486,4 +426,5 @@ def build_whatnot_data_file(
             else part.IPN,
             *imgs,
         ])
+
     return output.getvalue()

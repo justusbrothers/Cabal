@@ -437,7 +437,7 @@ submitBtn.addEventListener('click', function() {
                         part: partData.pk,
                         quantity: payload.quantity,
                         location: payload.location_id,
-                        notes: `Ingested via LunarParser. Condition grade: ${payload.condition}`
+                        notes: `Ingested via Nexus. Condition grade: ${payload.condition}`
                     })
                 }).then(stockRes => {
                     if (!stockRes.ok) throw new Error("Part created, but Stock Record ingestion failed.");
