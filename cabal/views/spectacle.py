@@ -4,15 +4,15 @@ import logging
 import math
 import os
 import re
-import requests
 import textwrap
 import time
 import unicodedata
 
+import requests
+from django.core.cache import cache
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.core.cache import cache
 
 from .. import constants
 

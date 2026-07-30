@@ -12,10 +12,12 @@ from .views import (
     Vanguard,
     WeeklyReportPDFView,
 )
+from django.views.generic import TemplateView
 
 app_name = "cabal"
 
 urlpatterns = [
+    path("", TemplateView.as_view(template_name="cabal/index.html"), name="portal"),
     path("customerexporter/", CustomerExporterView.as_view(), name="customerexporter"),
     path("customerorders/", CustomerOrders, name="customerorders"),
     path("lunarparser/", LunarParser.as_view(), name="lunarparser"),

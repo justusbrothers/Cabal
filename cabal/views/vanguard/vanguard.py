@@ -6,7 +6,9 @@ import re
 from django.contrib import messages
 from django.http import HttpResponse
 from django.shortcuts import render
+from django.utils.decorators import method_decorator
 from django.views import View
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -80,6 +82,7 @@ class LookupPacksApiView(APIView):
         )
 
 
+@method_decorator(xframe_options_sameorigin, name="dispatch")
 class Vanguard(View):
     template_name = "vanguard/vanguard.html"
 

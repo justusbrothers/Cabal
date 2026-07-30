@@ -10,6 +10,8 @@ from django.db import transaction
 from django.db.models import Count, Sum
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
+from django.utils.decorators import method_decorator
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.generic import View
 
 from rest_framework.permissions import IsAuthenticated
@@ -34,6 +36,7 @@ except ImportError:
 logger = logging.getLogger("inventree")
 
 
+@method_decorator(xframe_options_sameorigin, name="dispatch")
 class DataToolView(View):
     permission_classes = [IsAuthenticated]
 

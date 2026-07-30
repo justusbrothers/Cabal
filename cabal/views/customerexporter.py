@@ -3,13 +3,20 @@
 import io
 import json
 import pandas as pd
+
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
+from django.utils.decorators import method_decorator
 from django.views import View
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 
 
 class CustomerExporterView(View):
     template_name = "customerexporter/parser_interface.html"
+
+    @method_decorator(xframe_options_sameorigin)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
 
     def get(self, request, *args, **kwargs):
         return render(request, self.template_name, context={})

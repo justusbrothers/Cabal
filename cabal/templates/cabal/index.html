@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cabal Portal</title>
+    <style>
+        :root {
+            --bg-color: #1a1d20;
+            --panel-bg: #212529;
+            --border-color: #343a40;
+            --accent-color: #0d6efd;
+            --text-color: #f8f9fa;
+            --text-muted: #adb5bd;
+            --hover-bg: #2c3036;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Header / Tab Navigation */
+        .portal-header {
+            background-color: var(--panel-bg);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            padding: 0 1rem;
+            height: 50px;
+        }
+
+        .portal-title {
+            font-weight: 700;
+            font-size: 1.1rem;
+            margin-right: 2rem;
+            color: var(--accent-color);
+            letter-spacing: 0.5px;
+        }
+
+        .nav-tabs {
+            display: flex;
+            list-style: none;
+            gap: 0.25rem;
+            height: 100%;
+        }
+
+        .nav-tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 0 1.25rem;
+            height: 100%;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 0.9rem;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-tab-btn:hover {
+            color: var(--text-color);
+            background-color: var(--hover-bg);
+        }
+
+        .nav-tab-btn.active {
+            color: var(--text-color);
+            border-bottom-color: var(--accent-color);
+            background-color: var(--hover-bg);
+        }
+
+        /* Main Frame Container */
+        .portal-viewport {
+            flex: 1;
+            position: relative;
+            background-color: #ffffff;
+        }
+
+        .tab-panel {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+    <header class="portal-header">
+        <div class="portal-title">CABAL PORTAL</div>
+        <ul class="nav-tabs" id="tabList">
+            <li>
+                <button class="nav-tab-btn" data-target="tab-lunar">
+                    Lunar Parser
+                </button>
+            </li>
+            <li>
+                <button class="nav-tab-btn" data-target="tab-vanguard">
+                    Vanguard
+                </button>
+            </li>
+            <li>
+                <button class="nav-tab-btn active" data-target="tab-syncroth">
+                    Syncroth
+                </button>
+            </li>
+            <!-- <li>
+                <button class="nav-tab-btn" data-target="tab-spectacle">
+                    Spectacle
+                </button>
+            </li> -->
+            <li>
+                <button class="nav-tab-btn" data-target="tab-orders">
+                    Customer Orders
+                </button>
+            </li>
+            <li>
+                <button class="nav-tab-btn" data-target="tab-exporter">
+                    Customer Exporter
+                </button>
+            </li>
+        </ul>
+    </header>
+
+    <main class="portal-viewport">
+        <iframe 
+            id="tab-lunar" 
+            class="tab-panel" 
+            src="{% url 'plugin:cabal:lunarparser' %}"
+            loading="lazy">
+        </iframe>
+
+        <iframe 
+            id="tab-vanguard" 
+            class="tab-panel" 
+            src="{% url 'plugin:cabal:vanguard' %}"
+            loading="lazy">
+        </iframe>
+
+        <iframe 
+            id="tab-syncroth" 
+            class="tab-panel active" 
+            src="{% url 'plugin:cabal:datatool' %}"
+            loading="lazy">
+        </iframe>
+
+        <!-- <iframe 
+            id="tab-spectacle" 
+            class="tab-panel" 
+            src="{% url 'plugin:cabal:spectacle' %}"
+            loading="lazy">
+        </iframe> -->
+
+        <iframe 
+            id="tab-orders" 
+            class="tab-panel" 
+            src="{% url 'plugin:cabal:customerorders' %}"
+            loading="lazy">
+        </iframe>
+
+        <iframe 
+            id="tab-exporter" 
+            class="tab-panel" 
+            src="{% url 'plugin:cabal:customerexporter' %}"
+            loading="lazy">
+        </iframe>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const tabButtons = document.querySelectorAll('.nav-tab-btn');
+            const tabPanels = document.querySelectorAll('.tab-panel');
+
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const targetId = button.getAttribute('data-target');
+
+                    // Remove active state from all buttons & panels
+                    tabButtons.forEach(btn => btn.classList.remove('active'));
+                    tabPanels.forEach(panel => panel.classList.remove('active'));
+
+                    // Activate selected button & panel
+                    button.classList.add('active');
+
+                    const targetPanel = document.getElementById(targetId);
+
+                    if (targetPanel) {
+                        targetPanel.classList.add('active');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

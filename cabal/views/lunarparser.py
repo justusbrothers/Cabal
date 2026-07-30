@@ -8,12 +8,15 @@ from io import BytesIO, StringIO
 import pandas as pd
 import numpy as np
 from django.shortcuts import render
+from django.utils.decorators import method_decorator
 from django.views import View
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.http import HttpResponse
 
 logger = logging.getLogger("inventree")
 
 
+@method_decorator(xframe_options_sameorigin, name="dispatch")
 class LunarParser(View):
     """Lunar & Penguin Distributor CSV Parser & UPC Validator"""
 
