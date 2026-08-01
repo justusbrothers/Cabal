@@ -9,17 +9,18 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "inventree-cabal"
-description = "Just Us Brothers comic management tools"
+description = {attr = "cabal.DESCRIPTION"}
 dynamic = ["version"]
 authors = [
-    { name = "Just Us Brothers",email = "info@justusbrothers.shop" },
+    { name = "JustUs Brothers",email = "info@justusbrothers.shop" },
 ]
 readme = "README.md"
 license = "MIT"
 keywords = ["inventree", "plugin"]
 requires-python = ">=3.9"
 dependencies = [
-    # Enter your plugin library dependencies here
+    "mokkari>=4.0.0",
+    "reportlab>=4.0.0",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -36,7 +37,7 @@ Cabal = "cabal.core:Cabal"
 where = [""]
 
 [tool.setuptools.dynamic]
-version = {attr = "cabal.PLUGIN_VERSION"} 
+version = {attr = "cabal.PLUGIN_VERSION"}
 
 [tool.ruff]
 exclude = [
