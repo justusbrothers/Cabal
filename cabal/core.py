@@ -7,7 +7,7 @@ from plugin.mixins import UrlsMixin
 
 from .urls import urlpatterns
 
-from . import DESCRIPTION, PLUGIN_VERSION
+from . import PLUGIN_VERSION
 
 
 class Cabal(UrlsMixin, InvenTreePlugin):
@@ -17,7 +17,7 @@ class Cabal(UrlsMixin, InvenTreePlugin):
     TITLE = "Cabal"
     NAME = "Cabal"
     SLUG = "cabal"
-    DESCRIPTION = DESCRIPTION
+    DESCRIPTION = "JustUs Brothers comic management tools"
     VERSION = PLUGIN_VERSION
 
     # Additional project information
