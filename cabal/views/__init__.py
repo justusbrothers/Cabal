@@ -1,6 +1,6 @@
-# cabal/views/__init__.py
+# /opt/inventree/plugins/Cabal/cabal/views/__init__.py
 
-from .customerexporter import CustomerExporterView as CustomerExporterView
+from .avisia import Avisia as Avisia
 from .cerebro import Cerebro as Cerebro
 from .nexus import NexusView as NexusView
 from .spectacle import Spectacle as Spectacle
