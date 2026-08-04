@@ -1,4 +1,4 @@
-# cabal/views/vanguard/helpers.py
+# cabal/apps/vanguard/helpers.py
 
 import re
 

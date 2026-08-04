@@ -1,4 +1,4 @@
-# cabal/views/vanguard/flowables.py
+# cabal/apps/vanguard/flowables.py
 
 from reportlab.lib import colors
 from reportlab.platypus import Flowable

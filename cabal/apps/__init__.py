@@ -1,4 +1,4 @@
-# /opt/inventree/plugins/Cabal/cabal/views/__init__.py
+# /opt/inventree/plugins/Cabal/cabal/apps/__init__.py
 
 from .avisia import Avisia as Avisia
 from .cerebro import Cerebro as Cerebro

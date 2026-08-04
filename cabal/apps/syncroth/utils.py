@@ -1,3 +1,3 @@
-# cabal/views/syncroth/utils.py
+# cabal/apps/syncroth/utils.py
 
 DOMAIN = "https://inventree.justusbrothers.shop"

@@ -1,4 +1,4 @@
-# cabal/views/syncroth/parsers.py
+# cabal/apps/syncroth/parsers.py
 
 import csv
 import io

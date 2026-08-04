@@ -1,4 +1,4 @@
-# cabal/views/syncroth/pdf.py
+# cabal/apps/syncroth/pdf.py
 
 import io
 import re
@@ -182,7 +182,7 @@ class WeeklyReportPDFView(View):
             return ""
 
     def get(self, request, *args, **kwargs):
-        from .views import DataTool
+        from .apps import DataTool
 
         tool = DataTool()
 
