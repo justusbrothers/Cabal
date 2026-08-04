@@ -4,7 +4,7 @@ from django.urls import path
 
 from .views import (
     CustomerExporterView,
-    CustomerOrders,
+    Cerebro,
     DataToolView,
     LookupPacksApiView,
     NexusView,
@@ -19,7 +19,7 @@ app_name = "cabal"
 urlpatterns = [
     path("", TemplateView.as_view(template_name="cabal/index.html"), name="portal"),
     path("customerexporter/", CustomerExporterView.as_view(), name="customerexporter"),
-    path("customerorders/", CustomerOrders, name="customerorders"),
+    path("cerebro/", Cerebro, name="cerebro"),
     path("nexus/", NexusView.as_view(), name="nexus"),
     path("spectacle/", Spectacle.as_view(), name="spectacle"),
     path("syncroth/", DataToolView.as_view(), name="datatool"),
