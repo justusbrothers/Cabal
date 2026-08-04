@@ -1,4 +1,5 @@
-// js_modules/_matrix_table.js
+// /plugins/Cabal/cabal/static/cabal/js/nexus/_matrix_table.js
+
 const rowsPerPage = 10;
 let currentPage = 1;
 

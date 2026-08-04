@@ -1,4 +1,5 @@
-// js_modules/_inventree_ingest.js
+// /plugins/Cabal/cabal/static/cabal/js/nexus/_inventree_ingest.js
+
 const submitBtn = document.getElementById('submitToInvenTreeBtn');
 
 function loadModalWithData(spectacleData, originalRowData, currentUPC) {

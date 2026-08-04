@@ -1,3 +1,5 @@
+// /plugins/Cabal/cabal/static/cabal/js/avisia/config.js
+
 // 🗓️ Format the raw date selection nicely
 function getFormattedShowDate() {
     const rawDateTimeVal = document.getElementById('showDatePicker').value;

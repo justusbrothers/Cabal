@@ -1,4 +1,4 @@
-// /plugins/Cabal/cabal/static/cabal/js/syncroth/script.js
+// /plugins/Cabal/cabal/static/cabal/js/syncroth/syncroth.js
 
 function copyIPSListToClipboard() {
     const textarea = document.getElementById("partsList");

@@ -1,0 +1,57 @@
+/* /plugins/Cabal/cabal/static/cabal/css/nexus/nexus.css */
+
+/* Nexus Header Accent */
+.nexus-header {
+  border-bottom: 2px solid var(--accent-cyan);
+  padding-bottom: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.nexus-header h1 {
+  color: var(--accent-cyan);
+  margin: 0;
+}
+
+/* Matrix Scanning Table */
+.nexus-table-container {
+  overflow-x: auto;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+}
+
+.nexus-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg-surface);
+}
+
+.nexus-table th {
+  background: rgba(0, 240, 255, 0.08);
+  font-family: var(--font-header);
+  color: var(--accent-cyan);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  padding: 0.85rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.nexus-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 0.9rem;
+}
+
+.nexus-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* Scan Input Alert Indicator */
+.nexus-barcode-badge {
+  background: rgba(255, 183, 0, 0.15);
+  border: 1px solid var(--accent-gold);
+  color: var(--accent-gold);
+  font-family: monospace;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+}

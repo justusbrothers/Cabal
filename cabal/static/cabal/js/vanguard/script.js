@@ -1,3 +1,5 @@
+// /plugins/Cabal/cabal/static/cabal/js/vanguard/script.js
+
 // Server-side rendered card quantity helper
 function updateRemainingServerRender(inputElem, remainingElemId) {
     const max = parseInt(inputElem.dataset.max) || 0;

@@ -1,4 +1,5 @@
-// js_modules/_utils.js
+// /plugins/Cabal/cabal/static/cabal/js/nexus/_utils.js
+
 function showTemporaryCheckmark(buttonElem) {
     const originalText = buttonElem.innerHTML;
     buttonElem.innerHTML = "✓";

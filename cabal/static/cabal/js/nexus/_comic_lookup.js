@@ -1,4 +1,5 @@
-// js_modules/_comic_lookup.js
+// /plugins/Cabal/cabal/static/cabal/js/nexus/_comic_lookup.js
+
 let scannerModal = null;
 const modalBody = document.getElementById('modalScanBody');
 

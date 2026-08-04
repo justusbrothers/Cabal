@@ -1,3 +1,5 @@
+// /plugins/Cabal/cabal/static/cabal/js/avisia/config.js
+
 // --- Global Application States ---
 let db;
 let runtimeCache = { buyers: [], tippers: [] };

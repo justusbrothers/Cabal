@@ -1,3 +1,5 @@
+// /plugins/Cabal/cabal/static/cabal/js/avisia/app.js
+
 // Interface Selectors
 const mainSearchInput = document.getElementById('tableSearchInput');
 

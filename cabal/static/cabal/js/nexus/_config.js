@@ -1,4 +1,4 @@
-// js_modules/_config.js
+// /plugins/Cabal/cabal/static/cabal/js/nexus/_config.js
 
 // Read variables from global window context, or default to -1 if unassigned
 window.upcColIndex = typeof window.upcColIndex === 'number' ? window.upcColIndex : -1;

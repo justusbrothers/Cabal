@@ -1,0 +1,41 @@
+/* /plugins/Cabal/cabal/static/cabal/css/vanguard/vanguard.css */
+
+/* Vanguard Header Accent */
+.vanguard-header {
+  border-bottom: 2px solid var(--accent-magenta);
+  padding-bottom: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.vanguard-header h1 {
+  color: var(--accent-magenta);
+  margin: 0;
+}
+
+/* PDF Preview Canvas Wrapper */
+.vanguard-preview-card {
+  background: #1e2330;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+}
+
+/* Flowable Element Badges */
+.vanguard-flowable-item {
+  background: var(--bg-card);
+  border-left: 3px solid var(--accent-magenta);
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.5rem;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.vanguard-flowable-item:hover {
+  border-left-color: var(--accent-cyan);
+}

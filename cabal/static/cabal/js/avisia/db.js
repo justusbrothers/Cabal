@@ -1,3 +1,5 @@
+// /plugins/Cabal/cabal/static/cabal/js/avisia/config.js
+
 // Initialize IndexedDB Pipeline
 const request = indexedDB.open("CustomerExporterDB", 1);
 request.onupgradeneeded = function(e) {

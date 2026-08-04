@@ -1,0 +1,129 @@
+/* ==========================================================================
+   CABAL UNIFIED CORE STYLES
+   ========================================================================== */
+
+:root {
+  /* Palette */
+  --cabal-bg-dark: #0a0c10;
+  --cabal-bg-surface: #12161f;
+  --cabal-bg-card: rgba(22, 27, 38, 0.75);
+  
+  /* Brand Accent Colors */
+  --cabal-cyan: #00f0ff;
+  --cabal-magenta: #ff0055;
+  --cabal-gold: #ffb700;
+  --cabal-green: #00ff88;
+  
+  /* Text & Borders */
+  --cabal-text: #e2e8f0;
+  --cabal-text-muted: #8492a6;
+  --cabal-border: rgba(255, 255, 255, 0.1);
+  --cabal-border-glow: rgba(0, 240, 255, 0.3);
+
+  /* Fonts */
+  --cabal-font-header: 'Orbitron', -apple-system, sans-serif;
+  --cabal-font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* App Wrapper */
+.cabal-container {
+  color: var(--cabal-text);
+  font-family: var(--cabal-font-body);
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* App Header Nav */
+.cabal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background: var(--cabal-bg-surface);
+  border: 1px solid var(--cabal-border);
+  border-radius: 10px;
+  margin-bottom: 1.5rem;
+}
+
+.cabal-header-title {
+  font-family: var(--cabal-font-header);
+  font-size: 1.4rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* App Badges */
+.cabal-badge-nexus { color: var(--cabal-cyan); }
+.cabal-badge-vanguard { color: var(--cabal-magenta); }
+
+/* Glass Card Shells */
+.cabal-card {
+  background: var(--cabal-bg-card);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--cabal-border);
+  border-radius: 10px;
+  padding: 1.25rem;
+  margin-bottom: 1.25rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cabal-card:hover {
+  border-color: var(--cabal-border-glow);
+}
+
+/* Action Buttons */
+.cabal-btn {
+  font-family: var(--cabal-font-header);
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 0.5rem 1.25rem;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cabal-btn-cyan {
+  background: var(--cabal-cyan);
+  color: #000;
+}
+.cabal-btn-cyan:hover {
+  box-shadow: 0 0 12px var(--cabal-cyan);
+}
+
+.cabal-btn-magenta {
+  background: var(--cabal-magenta);
+  color: #fff;
+}
+.cabal-btn-magenta:hover {
+  box-shadow: 0 0 12px var(--cabal-magenta);
+}
+
+.cabal-btn-outline {
+  background: transparent;
+  color: var(--cabal-text);
+  border-color: var(--cabal-border);
+}
+.cabal-btn-outline:hover {
+  border-color: var(--cabal-cyan);
+  color: var(--cabal-cyan);
+}
+
+/* Unified Inputs */
+.cabal-input {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--cabal-border);
+  color: var(--cabal-text);
+  padding: 0.6rem 0.9rem;
+  border-radius: 6px;
+  outline: none;
+  width: 100%;
+}
+.cabal-input:focus {
+  border-color: var(--cabal-cyan);
+}
