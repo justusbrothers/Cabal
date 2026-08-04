@@ -1,13 +1,38 @@
 /* /plugins/Cabal/cabal/static/cabal/css/cabal/cabal.css */
 
+/* 0. Base Accent Variables (Set dynamically by JS, default Red fallback) */
 :root {
+    --cabal-accent-color: #dc3545;
+    --accent-color: var(--cabal-accent-color);
+    --accent-hover: color-mix(in srgb, var(--cabal-accent-color) 85%, black);
+    --accent-soft: color-mix(in srgb, var(--cabal-accent-color) 15%, transparent);
+}
+
+/* 1. Light Mode Theme Variables (Default) */
+:root,
+[data-bs-theme="light"] {
+    --bg-color: #f8f9fa;
+    --panel-bg: #ffffff;
+    --border-color: #dee2e6;
+    --text-color: #212529;
+    --text-muted: #6c757d;
+    --hover-bg: rgba(0, 0, 0, 0.05);
+    --active-tab-bg: rgba(0, 0, 0, 0.07);
+    --active-tab-text: var(--accent-color);
+    --viewport-bg: #f8f9fa;
+}
+
+/* 2. Dark Mode Theme Variables Overrides */
+[data-bs-theme="dark"] {
     --bg-color: #1a1d20;
     --panel-bg: #212529;
     --border-color: #343a40;
-    --accent-color: #0d6efd;
     --text-color: #f8f9fa;
     --text-muted: #adb5bd;
-    --hover-bg: #2c3036;
+    --hover-bg: rgba(255, 255, 255, 0.06);
+    --active-tab-bg: rgba(255, 255, 255, 0.08);
+    --active-tab-text: var(--accent-color);
+    --viewport-bg: #121416;
 }
 
 * {
@@ -24,6 +49,12 @@ body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+h1 em {
+    color: var(--accent-color);
+    font-style: normal;
 }
 
 /* Header / Tab Navigation */
@@ -34,6 +65,7 @@ body {
     align-items: center;
     padding: 0 1rem;
     height: 50px;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .portal-title {
@@ -49,6 +81,8 @@ body {
     list-style: none;
     gap: 0.25rem;
     height: 100%;
+    margin-bottom: 0;
+    padding-left: 0;
 }
 
 .nav-tab-btn {
@@ -60,8 +94,8 @@ body {
     cursor: pointer;
     font-weight: 500;
     font-size: 0.9rem;
-    border-bottom: 3px solid transparent;
-    transition: all 0.2s ease;
+    position: relative;
+    transition: background-color 0.2s ease, color 0.2s ease;
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -73,16 +107,29 @@ body {
 }
 
 .nav-tab-btn.active {
-    color: var(--text-color);
-    border-bottom-color: var(--accent-color);
-    background-color: var(--hover-bg);
+    color: var(--active-tab-text);
+    background-color: var(--active-tab-bg);
+}
+
+/* Active Bottom Bar Indicator (Uses Accent Color) */
+.nav-tab-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background-color: var(--accent-color);
+    border-top-left-radius: 2px;
+    border-top-right-radius: 2px;
 }
 
 /* Main Frame Container */
 .portal-viewport {
     flex: 1;
     position: relative;
-    background-color: #ffffff;
+    background-color: var(--viewport-bg);
+    transition: background-color 0.2s ease;
 }
 
 .tab-panel {
@@ -97,4 +144,75 @@ body {
 
 .tab-panel.active {
     display: block;
+}
+
+/* ==========================================================================
+   Bootstrap Component Accent Overrides
+   ========================================================================== */
+
+/* Standard Bootstrap Nav Pills / Nav Tabs */
+.nav-pills .nav-link.active,
+.nav-tabs .nav-link.active {
+    background-color: var(--accent-color) !important;
+    border-color: var(--accent-color) !important;
+    color: #ffffff !important;
+}
+
+/* Primary & Accent Buttons */
+.btn-primary,
+.btn-accent {
+    background-color: var(--accent-color) !important;
+    border-color: var(--accent-color) !important;
+    color: #ffffff !important;
+}
+
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-accent:hover,
+.btn-accent:focus {
+    background-color: var(--accent-hover) !important;
+    border-color: var(--accent-hover) !important;
+    color: #ffffff !important;
+}
+
+/* Outline Buttons */
+.btn-outline-primary,
+.btn-outline-accent {
+    color: var(--accent-color) !important;
+    border-color: var(--accent-color) !important;
+}
+
+.btn-outline-primary:hover,
+.btn-outline-accent:hover {
+    background-color: var(--accent-color) !important;
+    border-color: var(--accent-color) !important;
+    color: #ffffff !important;
+}
+
+/* Form Switches & Checkboxes */
+.form-check-input:checked {
+    background-color: var(--accent-color) !important;
+    border-color: var(--accent-color) !important;
+}
+
+/* Input Focus Glow & Outline */
+.form-control:focus,
+.form-select:focus,
+.form-check-input:focus {
+    border-color: var(--accent-color) !important;
+    box-shadow: 0 0 0 0.25rem var(--accent-soft) !important;
+}
+
+/* Utility Helpers */
+.text-accent,
+.text-primary {
+    color: var(--accent-color) !important;
+}
+
+.bg-accent {
+    background-color: var(--accent-color) !important;
+}
+
+.border-accent {
+    border-color: var(--accent-color) !important;
 }

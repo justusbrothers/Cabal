@@ -1,120 +1,142 @@
 <!-- /plugins/Cabal/cabal/templates/vanguard/vanguard.html -->
 
 {% extends "base.html" %}
-{% block content %}
-
 {% load static %}
 
-<!-- <link rel="stylesheet" type="text/css" href="{% static 'plugins/cabal/cabal/css/cabal-core.css' %}"> -->
-<link rel="stylesheet" type="text/css" href="{% static 'plugins/cabal/cabal/css/vanguard/vanguard.css' %}">
+{% block extra_css %}
+<!-- <link rel="stylesheet" type="text/css" href="{% static 'plugins/cabal/cabal/css/vanguard/vanguard.css' %}"> -->
+{% endblock %}
 
-<div class="container">
-    <h1>Game Day Strategy Report Generator</h1>
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4"><em>Vanguard</em> <span class="text-muted fs-4">| Game Day Strategy Report</span></h1>
     
     {% if messages %}
-        {% for message in messages %}
-            <div class="alert alert-{{ message.tags|default:'info' }}" role="alert" style="padding: 10px; border-radius: 4px; background-color: #e2e3e5; color: #383d41; margin-bottom: 15px;">
-                {{ message }}
-            </div>
-        {% endfor %}
+        <div class="mb-4">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show shadow-sm" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        </div>
     {% endif %}
 
-    <form id="vanguard-form" method="POST" action="">
-        {% csrf_token %}
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form id="vanguard-form" method="POST" action="">
+                {% csrf_token %}
 
-        <div class="form-group">
-            <label for="lookup_date">Lookup IPNs by Date Parameter</label>
-            <div style="display: flex; gap: 10px;">
-                <input type="date" id="lookup_date" name="lookup_date" value="{{ selected_date }}">
-                <button type="button" id="btn-lookup-date" class="btn btn-info" style="white-space: nowrap;">Lookup by Date</button>
-            </div>
-        </div>
-        
-        <div class="form-group">
-            <label for="ipn_list">IPN List / Single SKUs</label>
-            <textarea id="ipn_list" name="ipn_list" placeholder="Enter IPNs or SKUs, separated by commas or newlines...">{{ ipn_list }}</textarea>
-            <div class="help-text">List individual item IPNs to inspect for incentive ratio variants and single pulls.</div>
-        </div>
+                <!-- Date Lookup Row -->
+                <div class="mb-4">
+                    <label for="lookup_date" class="form-label fw-bold">Lookup IPNs by Date Parameter</label>
 
-        <div class="form-group">
-            <label>Recommended Packs & Sets</label>
-            
-            <div id="recommendations-container" class="recommendations-card" style="{% if not recommended_packs %}display: none;{% endif %}">
-                <h3 style="margin-top: 0; font-size: 15px; color: #2C3E50;">Recommended Packs</h3>
-                <div id="recommendations-list">
-                    {% for pack in recommended_packs %}
-                        <div class="recommendation-card-item">
-                            <input 
-                                type="checkbox" 
-                                class="recommendation-checkbox pack-checkbox" 
-                                id="pack_{{ forloop.counter }}" 
-                                name="selected_packs" 
-                                value="{{ pack.recommended_pack_sku }}"
-                                {% if not pack.has_missing_cover %}checked{% endif %}
-                            >
-                            <div class="recommendation-content">
-                                <div class="recommendation-header">
-                                    <label for="pack_{{ forloop.counter }}" class="recommendation-title" style="cursor: pointer;">
-                                        <strong>{{ pack.recommended_pack_sku }}</strong> — {{ pack.title }}
-                                    </label>
-                                    <div class="cover-flags">
-                                        {% for cover in pack.cover_details %}
-                                            <span class="cover-badge {% if not cover.has_stock %}missing-cover{% endif %}" title="Stock: {{ cover.qty }}">
-                                                {{ cover.letter }}<sup>{{ cover.qty }}</sup>
-                                            </span>
-                                        {% endfor %}
-                                    </div>
-                                </div>
-                                <div class="recommendation-qty-row">
-                                    <label for="pack_qty_{{ forloop.counter }}">Build Qty:</label>
-                                    <input 
-                                        type="number" 
-                                        id="pack_qty_{{ forloop.counter }}" 
-                                        class="qty-input" 
-                                        name="pack_qty_{{ pack.recommended_pack_sku }}" 
-                                        value="1" 
-                                        min="0" 
-                                        max="{{ pack.max_buildable_packs }}"
-                                        data-max="{{ pack.max_buildable_packs }}"
-                                        oninput="updateRemainingServerRender(this, 'remaining_{{ forloop.counter }}')"
-                                    >
-                                    <span>Packs Remaining: <strong id="remaining_{{ forloop.counter }}" class="remaining-badge">0</strong></span>
-                                </div>
-                            </div>
-                        </div>
-                    {% endfor %}
+                    <div class="input-group">
+                        <input type="date" id="lookup_date" name="lookup_date" class="form-control" value="{{ selected_date }}">
+                        <button type="button" id="btn-lookup-date" class="btn btn-primary px-4">Lookup by Date</button>
+                    </div>
                 </div>
-                <button type="button" id="btn-alert-selected" class="btn btn-secondary" style="margin-top: 10px; padding: 6px 12px; font-size: 13px;">
-                    Add Selected Packs to List
-                </button>
-            </div>
+                
+                <hr class="border-secondary opacity-25 my-4">
 
-            <label for="packs" style="font-size: 13px; font-weight: normal; margin-top: 10px;">Manual Pack Definition / Custom List</label>
-            <textarea id="packs" name="packs" placeholder="Enter Pack SKUs or definitions...">{{ packs }}</textarea>
-            <div class="help-text">List multi-issue pack SKUs to auto-expand cover breakdowns and assembly checklists.</div>
-        </div>
+                <!-- IPN List -->
+                <div class="mb-4">
+                    <label for="ipn_list" class="form-label fw-bold">IPN List / Single SKUs</label>
 
-        <div class="form-group">
-            <label for="sub_box_pulls">Sub Box Pulls</label>
-            <textarea id="sub_box_pulls" name="sub_box_pulls" placeholder="Enter customer sub box pull requests...">{{ sub_box_pulls }}</textarea>
-        </div>
+                    <textarea id="ipn_list" name="ipn_list" class="form-control font-monospace" rows="4" placeholder="Enter IPNs or SKUs, separated by commas or newlines...">{{ ipn_list }}</textarea>
+                    <div class="form-text text-muted">List individual item IPNs to inspect for incentive ratio variants and single pulls.</div>
+                </div>
 
-        <div class="btn-group">
-            <button type="submit" name="action" value="generate_pdf" class="btn btn-primary">Generate PDF Strategy Report</button>
-            <button type="submit" name="action" value="save_session" class="btn btn-secondary">Save Parameters</button>
-            <button 
-                type="submit" 
-                name="action" 
-                value="clear_all" 
-                class="btn btn-outline-danger"
-                onclick="return confirm('Are you sure you want to clear all input fields?');"
-            >
-                Clear All
-            </button>
+                <!-- Recommended Packs Section -->
+                <div id="recommendations-container" class="card border-primary mb-4 bg-body-tertiary" style="{% if not recommended_packs %}display: none;{% endif %}">
+                    <div class="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">📦 Recommended Packs Detected</h6>
+                    </div>
+                    <div class="card-body">
+                        <div id="recommendations-list" class="list-group list-group-flush mb-3 rounded shadow-sm border border-secondary">
+                            {% for pack in recommended_packs %}
+                                <label class="list-group-item bg-dark d-flex gap-3 align-items-center py-3" style="cursor: pointer;">
+                                    
+                                    <input type="checkbox" 
+                                           class="form-check-input flex-shrink-0 recommendation-checkbox pack-checkbox fs-4" 
+                                           id="pack_{{ forloop.counter }}" 
+                                           name="selected_packs" 
+                                           value="{{ pack.recommended_pack_sku }}"
+                                           {% if not pack.has_missing_cover %}checked{% endif %}>
+                                           
+                                    <div class="d-flex flex-wrap w-100 justify-content-between align-items-center gap-2">
+                                        <div>
+                                            <h6 class="mb-1 fw-bold text-white">
+                                                {{ pack.recommended_pack_sku }} 
+                                                <span class="text-muted fw-normal ms-2">— {{ pack.title }}</span>
+                                            </h6>
+                                            <div class="d-flex gap-1 mt-2">
+                                                {% for cover in pack.cover_details %}
+                                                    <span class="badge {% if not cover.has_stock %}bg-danger{% else %}bg-secondary{% endif %}" title="Stock: {{ cover.qty }}">
+                                                        {{ cover.letter }} <span class="opacity-75">({{ cover.qty }})</span>
+                                                    </span>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+
+                                        <div class="d-flex align-items-center bg-body-tertiary p-2 rounded border border-secondary" onclick="event.preventDefault(); event.stopPropagation();">
+                                            <label for="pack_qty_{{ forloop.counter }}" class="small text-muted me-2 mb-0">Build Qty:</label>
+                                            <input type="number" 
+                                                   id="pack_qty_{{ forloop.counter }}" 
+                                                   name="pack_qty_{{ pack.recommended_pack_sku }}" 
+                                                   class="form-control form-control-sm text-center fw-bold me-3" 
+                                                   style="width: 70px;"
+                                                   value="1" 
+                                                   min="0" 
+                                                   max="{{ pack.max_buildable_packs }}"
+                                                   data-max="{{ pack.max_buildable_packs }}"
+                                                   oninput="updateRemainingServerRender(this, 'remaining_{{ forloop.counter }}')">
+                                                   
+                                            <div class="small">
+                                                Remaining: <strong id="remaining_{{ forloop.counter }}" class="text-info fs-6">0</strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </label>
+                            {% endfor %}
+                        </div>
+                        <button type="button" id="btn-alert-selected" class="btn btn-outline-light btn-sm px-3">
+                            <i class="bi bi-plus-circle"></i> Add Selected Packs to List
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Custom Pack Setup -->
+                <div class="mb-4">
+                    <label for="packs" class="form-label fw-bold">Manual Pack Definition / Custom List</label>
+
+                    <textarea id="packs" name="packs" class="form-control font-monospace" rows="3" placeholder="Enter Pack SKUs or definitions...">{{ packs }}</textarea>
+                    <div class="form-text text-muted">List multi-issue pack SKUs to auto-expand cover breakdowns and assembly checklists.</div>
+                </div>
+
+                <!-- Sub Box Pulls -->
+                <div class="mb-4">
+                    <label for="sub_box_pulls" class="form-label fw-bold">Sub Box Pulls</label>
+
+                    <textarea id="sub_box_pulls" name="sub_box_pulls" class="form-control font-monospace" rows="3" placeholder="Enter customer sub box pull requests...">{{ sub_box_pulls }}</textarea>
+                </div>
+
+                <!-- Actions -->
+                <div class="d-flex flex-wrap gap-2 pt-3 border-top border-secondary">
+                    <button type="submit" name="action" value="generate_pdf" class="btn btn-primary px-4">Generate PDF Strategy Report</button>
+
+                    <button type="submit" name="action" value="save_session" class="btn btn-secondary px-4">Save Parameters</button>
+
+                    <button type="submit" name="action" value="clear_all" class="btn btn-outline-danger ms-md-auto px-4" onclick="return confirm('Are you sure you want to clear all input fields?');">
+                        Clear All
+                    </button>
+                </div>
+            </form>
         </div>
-    </form>
+    </div>
 </div>
+{% endblock %}
 
+{% block extra_js %}
 <script src="{% static 'plugins/cabal/cabal/js/vanguard/script.js' %}"></script>
-
 {% endblock %}

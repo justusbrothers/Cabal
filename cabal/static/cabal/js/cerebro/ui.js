@@ -12,7 +12,6 @@ const accordion = document.getElementById('customerAccordion');
 const lunarTableBody = document.getElementById('lunarTableBody');
 const penguinTableBody = document.getElementById('penguinTableBody');
 const btnWipeDb = document.getElementById('btnWipeDb');
-const themeToggleCheckbox = document.getElementById('themeToggleCheckbox');
 const themeLabel = document.getElementById('themeLabel');
 const htmlTag = document.documentElement;
 const sortBoxContainer = document.getElementById('sortBoxContainer');
@@ -21,16 +20,6 @@ const tabElements = document.querySelectorAll('button[data-bs-toggle="tab"]');
 // ==========================================
 // THEME AND DRAG-AND-DROP INTERACTIONS
 // ==========================================
-themeToggleCheckbox.addEventListener('change', () => {
-  if (themeToggleCheckbox.checked) {
-    htmlTag.setAttribute('data-bs-theme', 'dark');
-    themeLabel.innerText = '🌙 Dark Mode';
-  } else {
-    htmlTag.setAttribute('data-bs-theme', 'light');
-    themeLabel.innerText = '☀️ Light Mode';
-  }
-});
-
 dropZone.addEventListener('click', () => fileInput.click());
 
 dropZone.addEventListener('dragover', (e) => { 

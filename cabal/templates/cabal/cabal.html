@@ -1,0 +1,128 @@
+<!-- /plugins/Cabal/cabal/templates/cabal/index.html -->
+
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}{% endblock %}
+
+{% block content %}
+<header class="portal-header d-flex align-items-stretch justify-content-between px-3 border-bottom" style="height: 52px;">
+    <div class="d-flex align-items-center gap-4 h-100">
+        <!-- Title vertically centered -->
+        <div class="portal-title fw-bold fs-5 d-flex align-items-center text-primary">CABAL</div>
+
+        <!-- Tab list stretched to 100% height -->
+        <ul class="nav-tabs d-flex align-items-stretch list-unstyled m-0 p-0 h-100 gap-1 border-bottom-0" id="tabList">
+            <li class="d-flex align-items-stretch">
+                <button class="nav-tab-btn active d-flex align-items-center px-3 border-0 bg-transparent h-100 position-relative" data-target="tab-nexus">
+                    Nexus
+                </button>
+            </li>
+
+            <li class="d-flex align-items-stretch">
+                <button class="nav-tab-btn d-flex align-items-center px-3 border-0 bg-transparent h-100 position-relative" data-target="tab-syncroth">
+                    Syncroth
+                </button>
+            </li>
+
+            <li class="d-flex align-items-stretch">
+                <button class="nav-tab-btn d-flex align-items-center px-3 border-0 bg-transparent h-100 position-relative" data-target="tab-vanguard">
+                    Vanguard
+                </button>
+            </li>
+
+            <li class="d-flex align-items-stretch">
+                <button class="nav-tab-btn d-flex align-items-center px-3 border-0 bg-transparent h-100 position-relative" data-target="tab-cerebro">
+                    Cerebro
+                </button>
+            </li>
+
+            <li class="d-flex align-items-stretch">
+                <button class="nav-tab-btn d-flex align-items-center px-3 border-0 bg-transparent h-100 position-relative" data-target="tab-avisia">
+                    Avisia
+                </button>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Appearance & Theme Settings Dropdown -->
+    <div class="dropdown d-flex align-items-center pe-2 ms-auto">
+        <button class="btn btn-link text-secondary p-1 text-decoration-none border-0" type="button" id="appearanceDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="Appearance Settings">
+            <i class="bi bi-palette-fill fs-5"></i>
+        </button>
+
+        <ul class="dropdown-menu dropdown-menu-end shadow p-3" aria-labelledby="appearanceDropdown" style="min-width: 220px;">
+            <!-- Theme Mode Section -->
+            <li><h6 class="dropdown-header px-0 text-uppercase fw-bold text-muted style-header">Theme</h6></li>
+            <li class="d-flex align-items-center justify-content-between mb-2">
+                <span class="small d-flex align-items-center gap-2">
+                    <i class="bi bi-sun-fill text-warning"></i>
+                    <span>Dark Mode</span>
+                </span>
+                <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" role="switch" id="themeToggle" style="cursor: pointer;">
+                </div>
+            </li>
+
+            <li><hr class="dropdown-divider"></li>
+
+            <!-- Accent Color Section -->
+            <li><h6 class="dropdown-header px-0 text-uppercase fw-bold text-muted style-header">Accent Color</h6></li>
+            <li>
+                <div class="d-flex gap-2 justify-content-between pt-1" id="accentPicker">
+                    <button type="button" class="btn btn-sm accent-option p-0 rounded-circle border border-2 border-white shadow-sm active" data-accent="red" style="width: 26px; height: 26px; background-color: #dc3545;" title="Red (Default)"></button>
+                    <button type="button" class="btn btn-sm accent-option p-0 rounded-circle border border-2 border-white shadow-sm" data-accent="green" style="width: 26px; height: 26px; background-color: #198754;" title="Green"></button>
+                    <button type="button" class="btn btn-sm accent-option p-0 rounded-circle border border-2 border-white shadow-sm" data-accent="blue" style="width: 26px; height: 26px; background-color: #0d6efd;" title="Blue"></button>
+                    <button type="button" class="btn btn-sm accent-option p-0 rounded-circle border border-2 border-white shadow-sm" data-accent="orange" style="width: 26px; height: 26px; background-color: #fd7e14;" title="Orange"></button>
+                </div>
+            </li>
+        </ul>
+    </div>
+</header>
+
+<main class="portal-viewport position-relative w-100" style="height: calc(100vh - 56px);">
+    <iframe 
+        id="tab-nexus" 
+        class="tab-panel active w-100 h-100 border-0" 
+        src="{% url 'plugin:cabal:nexus' %}">
+    </iframe>
+
+    <iframe 
+        id="tab-syncroth" 
+        class="tab-panel w-100 h-100 border-0" 
+        src="{% url 'plugin:cabal:syncroth' %}"
+        loading="lazy">
+    </iframe>
+
+    <iframe 
+        id="tab-vanguard" 
+        class="tab-panel w-100 h-100 border-0" 
+        src="{% url 'plugin:cabal:vanguard' %}"
+        loading="lazy">
+    </iframe>
+
+    <iframe 
+        id="tab-cerebro" 
+        class="tab-panel w-100 h-100 border-0" 
+        src="{% url 'plugin:cabal:cerebro' %}"
+        loading="lazy">
+    </iframe>
+
+    <iframe 
+        id="tab-avisia" 
+        class="tab-panel w-100 h-100 border-0" 
+        src="{% url 'plugin:cabal:avisia' %}"
+        loading="lazy">
+    </iframe>
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Excel library unique to Nexus -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<!-- Cabal Portal Logic -->
+<script src="{% static 'plugins/cabal/cabal/js/cabal/cabal.js' %}"></script>
+<script src="{% static 'plugins/cabal/cabal/js/cabal/accent_picker.js' %}"></script>
+<script src="{% static 'plugins/cabal/cabal/js/cabal/theme_toggle.js' %}"></script>
+{% endblock %}

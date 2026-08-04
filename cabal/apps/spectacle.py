@@ -144,8 +144,10 @@ class Spectacle(APIView):
                 "Spectacle: Cache MISS for base UPC %s, fetching from API",
                 standard_barcode,
             )
+
             metron_user = os.environ.get("METRON_USER")
             metron_pass = os.environ.get("METRON_PASS")
+
             if not metron_user or not metron_pass:
                 return Response(
                     {"success": False, "message": "Metron credentials missing"},

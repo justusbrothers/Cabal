@@ -17,7 +17,7 @@ from django.views.generic import TemplateView
 app_name = "cabal"
 
 urlpatterns = [
-    path("", TemplateView.as_view(template_name="cabal/index.html"), name="portal"),
+    path("", TemplateView.as_view(template_name="cabal/cabal.html"), name="portal"),
     path("avisia/", Avisia.as_view(), name="avisia"),
     path("cerebro/", Cerebro, name="cerebro"),
     path("nexus/", Nexus.as_view(), name="nexus"),
