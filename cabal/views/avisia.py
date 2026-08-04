@@ -1,4 +1,4 @@
-# /opt/inventree/plugins/Cabal/cabal/views/avisia.py
+# /plugins/Cabal/cabal/views/avisia.py
 
 import io
 import json

@@ -1,4 +1,4 @@
-# cabal/views/nexus.py
+# /plugins/Cabal/cabal/views/nexus.py
 
 import logging
 import re

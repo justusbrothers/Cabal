@@ -1,4 +1,4 @@
-# cabal/views/cerebro.py
+# /plugins/Cabal/cabal/views/cerebro.py
 
 from django.shortcuts import render
 from django.views.decorators.clickjacking import xframe_options_sameorigin

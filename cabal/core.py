@@ -1,4 +1,4 @@
-# cabal/core.py
+# /plugins/Cabal/cabal/core.py
 
 #### Just Us Brothers comic management tools
 

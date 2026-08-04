@@ -1,4 +1,4 @@
-# cabal/views/spectacle.py
+# /plugins/Cabal/cabal/views/spectacle.py
 
 import logging
 import math

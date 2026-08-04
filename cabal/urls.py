@@ -1,4 +1,4 @@
-# cabal/urls.py
+# /plugins/Cabal/cabal/urls.py
 
 from django.urls import path
 
