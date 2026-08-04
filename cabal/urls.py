@@ -5,9 +5,9 @@ from django.urls import path
 from .apps import (
     Avisia,
     Cerebro,
-    DataToolView,
+    Syncroth,
     LookupPacksApiView,
-    NexusView,
+    Nexus,
     Spectacle,
     Vanguard,
     WeeklyReportPDFView,
@@ -20,9 +20,9 @@ urlpatterns = [
     path("", TemplateView.as_view(template_name="cabal/index.html"), name="portal"),
     path("avisia/", Avisia.as_view(), name="avisia"),
     path("cerebro/", Cerebro, name="cerebro"),
-    path("nexus/", NexusView.as_view(), name="nexus"),
+    path("nexus/", Nexus.as_view(), name="nexus"),
     path("spectacle/", Spectacle.as_view(), name="spectacle"),
-    path("syncroth/", DataToolView.as_view(), name="datatool"),
+    path("syncroth/", Syncroth.as_view(), name="syncroth"),
     path("vanguard/", Vanguard.as_view(), name="vanguard"),
     path(
         "vanguard/api/lookup-packs/",

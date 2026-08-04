@@ -37,7 +37,7 @@ logger = logging.getLogger("inventree")
 
 
 @method_decorator(xframe_options_sameorigin, name="dispatch")
-class DataToolView(View):
+class Syncroth(View):
     permission_classes = [IsAuthenticated]
 
     template_name = "syncroth/data-tool.html"
@@ -178,29 +178,25 @@ class DataToolView(View):
         output_format = source.get("format", "").strip()
         in_stock_date = source.get("in_stock_date", "").strip()
 
-        logger.info("syncroth:DataTool:process_request:================")
-        logger.info("syncroth:DataTool:process_request:request: %s", request)
-        logger.info("syncroth:DataTool:process_request:source: %s", source)
+        logger.info("syncroth:process_request:================")
+        logger.info("syncroth:process_request:request: %s", request)
+        logger.info("syncroth:process_request:source: %s", source)
 
-        logger.info("syncroth:DataTool:process_request:ipn_list: %s", ipn_list)
-        logger.info("syncroth:DataTool:process_request:whatnot_only: %s", whatnot_only)
+        logger.info("syncroth:process_request:ipn_list: %s", ipn_list)
+        logger.info("syncroth:process_request:whatnot_only: %s", whatnot_only)
         logger.info(
-            "syncroth:DataTool:process_request:selected_location_id: %s",
+            "syncroth:process_request:selected_location_id: %s",
             selected_location_id,
         )
-        logger.info("syncroth:DataTool:process_request:url_ipn_list: %s", url_ipn_list)
+        logger.info("syncroth:process_request:url_ipn_list: %s", url_ipn_list)
         logger.info(
-            "syncroth:DataTool:process_request:whatnot_listing_type: %s",
+            "syncroth:process_request:whatnot_listing_type: %s",
             whatnot_listing_type,
         )
-        logger.info("syncroth:DataTool:process_request:parser_name: %s", parser_name)
-        logger.info(
-            "syncroth:DataTool:process_request:output_format: %s", output_format
-        )
-        logger.info(
-            "syncroth:DataTool:process_request:in_stock_date: %s", in_stock_date
-        )
-        logger.info("syncroth:DataTool:process_request:================")
+        logger.info("syncroth:process_request:parser_name: %s", parser_name)
+        logger.info("syncroth:process_request:output_format: %s", output_format)
+        logger.info("syncroth:process_request:in_stock_date: %s", in_stock_date)
+        logger.info("syncroth:process_request:================")
 
         # 1. Primary Lookups (Manual Textarea List -> WhatNot -> Location -> Date-Only)
         if url_ipn_list:

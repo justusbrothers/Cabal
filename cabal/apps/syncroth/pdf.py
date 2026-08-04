@@ -182,9 +182,9 @@ class WeeklyReportPDFView(View):
             return ""
 
     def get(self, request, *args, **kwargs):
-        from .apps import DataTool
+        from .apps import Syncroth
 
-        tool = DataTool()
+        tool = Syncroth()
 
         # Pull parameters from GET or fallback to session parameters
         params = request.GET.copy()

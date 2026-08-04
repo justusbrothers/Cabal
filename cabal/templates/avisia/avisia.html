@@ -9,14 +9,14 @@
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="{% static 'plugins/cabal/cabal/css/customerexporter/style.css' %}" rel="stylesheet">
+    <link href="{% static 'plugins/cabal/cabal/css/avisia/style.css' %}" rel="stylesheet">
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
     <script>
         window.ExporterConfig = {
-            uploadUrl: "{% url 'plugin:cabal:customerexporter' %}",
+            uploadUrl: "{% url 'plugin:cabal:avisia' %}",
             csrfToken: "{{ csrf_token }}"
         };
     </script>
@@ -29,7 +29,7 @@
             <div class="card-header pb-2 mb-3 bg-transparent p-0 border-0 d-flex justify-content-center">
                 <h1 class="m-0 text-primary">
                     <i class="fas fa-heart fa-beat me-2" style="color: #ff007f;"></i> 
-                    Whatnot Customer Exporter 
+                    Avisia
                     <i class="fas fa-heart fa-beat ms-2" style="color: #ff007f;"></i>
                 </h1>
             </div>
@@ -280,9 +280,9 @@
 
     </div>
 
-    <script src="{% static 'plugins/cabal/cabal/js/customerexporter/config.js' %}"></script>
-    <script src="{% static 'plugins/cabal/cabal/js/customerexporter/helpers.js' %}"></script>
-    <script src="{% static 'plugins/cabal/cabal/js/customerexporter/db.js' %}"></script>
-    <script src="{% static 'plugins/cabal/cabal/js/customerexporter/app.js' %}"></script>
+    <script src="{% static 'plugins/cabal/cabal/js/avisia/config.js' %}"></script>
+    <script src="{% static 'plugins/cabal/cabal/js/avisia/helpers.js' %}"></script>
+    <script src="{% static 'plugins/cabal/cabal/js/avisia/db.js' %}"></script>
+    <script src="{% static 'plugins/cabal/cabal/js/avisia/app.js' %}"></script>
 </body>
 </html>

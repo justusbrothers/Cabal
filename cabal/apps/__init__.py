@@ -2,9 +2,9 @@
 
 from .avisia import Avisia as Avisia
 from .cerebro import Cerebro as Cerebro
-from .nexus import NexusView as NexusView
+from .nexus import Nexus as Nexus
 from .spectacle import Spectacle as Spectacle
-from .syncroth.syncroth import DataToolView as DataToolView
+from .syncroth.syncroth import Syncroth as Syncroth
 from .syncroth.pdf import WeeklyReportPDFView as WeeklyReportPDFView
 from .vanguard.vanguard import (
     LookupPacksApiView as LookupPacksApiView,

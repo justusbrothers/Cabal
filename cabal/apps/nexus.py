@@ -19,7 +19,7 @@ logger = logging.getLogger("inventree")
 
 
 @method_decorator(xframe_options_sameorigin, name="dispatch")
-class NexusView(View):
+class Nexus(View):
     """Lunar & Penguin Distributor CSV Parser & UPC Validator"""
 
     template_name = "nexus/nexus.html"
