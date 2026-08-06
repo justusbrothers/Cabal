@@ -48,7 +48,7 @@ body {
     height: 100vh;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    /* overflow: hidden;*/
     transition: background-color 0.2s ease, color 0.2s ease;
 }
 
