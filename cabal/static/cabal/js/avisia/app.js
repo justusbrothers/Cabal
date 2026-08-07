@@ -58,6 +58,7 @@ async function fetchTableData() {
         
         if (!contentType || !contentType.includes("application/json")) {
             console.error("Server returned non-JSON response for data fetch.");
+
             return;
         }
 
@@ -116,9 +117,7 @@ function handlePagination(storeKey, direction) {
 function renderActiveTables() {
     const query = mainSearchInput.value.toLowerCase().trim();
 
-    console.info('renderActiveTables', {
-        query
-    })
+    // console.info('renderActiveTables', { query })
 
     const filterFn = (storeKey) => item => {
         const buyerName = item.BUYER_NAME || item.buyer_name || '';
@@ -143,11 +142,7 @@ function renderActiveTables() {
         const activeBubble = activeBubbleFilters[storeKey];
         const matchesBubble = matchesBubbleFilter(lastTx, activeBubble);
 
-        console.info('renderActiveTables:filterFn', {
-            matchesSearch,
-            matchesLetter,
-            matchesBubble,
-        })
+        // console.info('renderActiveTables:filterFn', { matchesSearch, matchesLetter, matchesBubble })
 
         return matchesSearch && matchesLetter && matchesBubble;
     };
@@ -161,14 +156,7 @@ function renderActiveTables() {
     const startT = (currentPage.tippers - 1) * rowsPerPage.tippers;
     const tippersToRender = totalTippersFiltered.slice(startT, startT + rowsPerPage.tippers);
 
-    console.info('renderActiveTables', {
-        totalBuyersFiltered,
-        totalTippersFiltered,
-        startB,
-        buyersToRender,
-        startT,
-        tippersToRender,
-    })
+    // console.info('renderActiveTables', { totalBuyersFiltered, totalTippersFiltered, startB, buyersToRender, startT, tippersToRender })
 
     const rowMapper = row => {
         const name = row.BUYER_NAME || row.buyer_name || 'Unknown';
@@ -193,9 +181,7 @@ function renderActiveTables() {
         `;
     };
 
-    console.info('renderActiveTables', {
-        rowMapper
-    })
+    // console.info('renderActiveTables', { rowMapper })
 
     buyersTableBody.innerHTML = buyersToRender.map(rowMapper).join('') || `<tr><td colspan="3" class="text-center text-muted py-3">No matching buyers found.</td></tr>`;
     tippersTableBody.innerHTML = tippersToRender.map(rowMapper).join('') || `<tr><td colspan="3" class="text-center text-muted py-3">No matching tippers found.</td></tr>`;
@@ -209,11 +195,7 @@ function updatePaginationUI(storeKey, totalCount) {
     const buyerCount = document.getElementById('buyerCountDisplay');
     const tipperCount = document.getElementById('tipperCountDisplay');
 
-    console.info('updatePaginationUI', {
-        navContainer,
-        buyerCount,
-        tipperCount,
-    })
+    // console.info('updatePaginationUI', { navContainer, buyerCount, tipperCount })
 
     if (!navContainer || !buyerCount || !tipperCount) return;
 
@@ -312,6 +294,7 @@ processBtn.addEventListener('click', async () => {
         if (!contentType || !contentType.includes("application/json")) {
             const rawText = await response.text();
             console.error("Server returned non-JSON response:", rawText);
+
             throw new Error("Server encountered an internal error (500). Check terminal logs.");
         }
 
@@ -327,6 +310,7 @@ processBtn.addEventListener('click', async () => {
         
     } catch (error) {
         console.error("Import error:", error);
+
         updateStatus("Import failed: " + error.message, "danger");
     } finally {
         fileInput.disabled = false; 

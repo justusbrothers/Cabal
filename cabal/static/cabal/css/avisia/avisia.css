@@ -100,7 +100,9 @@ p, .text-muted, .form-text {
     border: 2px solid #ffb6c1 !important;
     transition: all 0.2s ease;
 }
-.nav-tabs .nav-link.active, .nav-tabs .nav-link:hover {
+.btn-pink.active,
+.nav-tabs .nav-link.active,
+.nav-tabs .nav-link:hover {
     background: linear-gradient(45deg, #ff69b4, #ff007f) !important;
     color: white !important;
     border-color: #ff007f !important;
@@ -125,6 +127,9 @@ p, .text-muted, .form-text {
 .btn-outline-secondary:hover {
     background-color: #ff69b4 !important;
     color: white !important;
+}
+.btn-outline-secondary:hover i {
+    color: #fff !important;
 }
 
 /* --- Beautiful Glamorous Pagination Fixes (No Grey!) --- */
