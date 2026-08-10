@@ -4,7 +4,7 @@
     const isIframe = window.self !== window.top;
     const CONTEXT = isIframe ? '[CABAL IFRAME]' : '[CABAL PARENT]';
 
-    console.log(`${CONTEXT} style_sync.js initialized. Is iframe: ${isIframe}`);
+    // console.log(`${CONTEXT} style_sync.js initialized. Is iframe: ${isIframe}`);
 
     const ACCENT_COLORS = {
         red: { primary: '#dc3545', primaryRgb: '220, 53, 69', hover: '#bb2d3b' },
@@ -70,11 +70,12 @@
     function applyStylesToDocument(doc, state) {
         if (!doc || !doc.documentElement) {
             console.error(`${CONTEXT} Cannot apply styles: Target document or documentElement is null/undefined.`);
+
             return;
         }
 
         const { theme, accent } = state;
-        console.log(`${CONTEXT} Applying styles -> Theme: "${theme}", Accent: "${accent}"`);
+        // console.log(`${CONTEXT} Applying styles -> Theme: "${theme}", Accent: "${accent}"`);
 
         // 1. Theme Updates
         if (theme) {
@@ -98,7 +99,8 @@
         let styleTag = doc.getElementById('cabal-accent-styles');
 
         if (!styleTag) {
-            console.log(`${CONTEXT} Creating missing <style id="cabal-accent-styles"> element.`);
+            // console.log(`${CONTEXT} Creating missing <style id="cabal-accent-styles"> element.`);
+
             styleTag = doc.createElement('style');
             styleTag.id = 'cabal-accent-styles';
             const targetHead = doc.head || doc.documentElement;
@@ -107,7 +109,7 @@
 
         styleTag.textContent = generateAccentCSS(color);
         doc.documentElement.setAttribute('data-cabal-accent', activeAccent);
-        console.log(`${CONTEXT} Dynamic CSS successfully written to <style id="cabal-accent-styles">.`);
+        // console.log(`${CONTEXT} Dynamic CSS successfully written to <style id="cabal-accent-styles">.`);
     }
 
     function getStoredState() {
@@ -116,7 +118,9 @@
                 (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'),
             accent: localStorage.getItem('cabal-accent') || 'red'
         };
-        console.log(`${CONTEXT} Loaded stored state:`, state);
+
+        // console.log(`${CONTEXT} Loaded stored state:`, state);
+
         return state;
     }
 
@@ -127,7 +131,8 @@
         const initialState = getStoredState();
         
         const initChild = () => {
-            console.log(`${CONTEXT} Executing child iframe initialization.`);
+            // console.log(`${CONTEXT} Executing child iframe initialization.`);
+
             applyStylesToDocument(document, initialState);
         };
 
@@ -139,7 +144,8 @@
 
         window.addEventListener('message', (event) => {
             if (event.data && event.data.type === 'CABAL_STYLE_UPDATE') {
-                console.log(`${CONTEXT} Valid CABAL_STYLE_UPDATE received inside iframe.`);
+                // console.log(`${CONTEXT} Valid CABAL_STYLE_UPDATE received inside iframe.`);
+
                 applyStylesToDocument(document, event.data.payload);
             }
         });
@@ -153,7 +159,8 @@
     let currentState = getStoredState();
 
     function syncState(partialState = {}) {
-        console.log(`${CONTEXT} syncState called with partialState:`, partialState);
+        // console.log(`${CONTEXT} syncState called with partialState:`, partialState);
+
         currentState = { ...currentState, ...partialState };
 
         if (partialState.theme) localStorage.setItem('cabal-theme', currentState.theme);
@@ -205,7 +212,7 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-        console.log(`${CONTEXT} DOMContentLoaded fired on parent portal.`);
+        // console.log(`${CONTEXT} DOMContentLoaded fired on parent portal.`);
         
         syncState(currentState);
 
@@ -231,7 +238,8 @@
 
         document.querySelectorAll('.portal-viewport iframe').forEach((iframe, idx) => {
             iframe.addEventListener('load', () => {
-                console.log(`${CONTEXT} iframe [${idx}] (id="${iframe.id}") finished loading.`);
+                // console.log(`${CONTEXT} iframe [${idx}] (id="${iframe.id}") finished loading.`);
+
                 try {
                     if (iframe.contentDocument) {
                         applyStylesToDocument(iframe.contentDocument, currentState);

@@ -1,5 +1,3 @@
-# /plugins/Cabal/cabal/apps/spectacle.py
-
 import logging
 import math
 import os
@@ -56,17 +54,13 @@ class Spectacle(APIView):
         if not text:
             return ""
 
-        # Step 1: Attempt Mojibake repair (Latin-1 bytes read as UTF-8)
         try:
             text = text.encode("latin-1").decode("utf-8")
         except (UnicodeEncodeError, UnicodeDecodeError):
             pass
 
-        # Step 2: Normalize Unicode representation (NFC form)
         text = unicodedata.normalize("NFC", text)
 
-        # Step 3: Fix casing issues (e.g., "JiméNez" -> "Jiménez")
-        # Uses title() across words while respecting unicode characters
         words = text.split()
         cleaned_words = [
             w.capitalize() if w.isupper() or any(c.isupper() for c in w[1:]) else w
@@ -101,6 +95,74 @@ class Spectacle(APIView):
         price_str = re.sub(r"[^\d\.]", "", price_str)
         return price_str
 
+    def extract_variant_char(
+        self, raw_variant: str, upc: str = "", fallback_idx: int = 0
+    ) -> str:
+        """
+        Extracts single letter character for variant IPNs.
+        Priority:
+        1. String matching ('Cover B', 'Variant C', etc.)
+        2. Barcode 16th digit (1=A/Standard, 2=B, 3=C, 4=D, 5=E, 6=F, 7=G)
+        3. Fallback index mapping
+        """
+        if raw_variant:
+            clean_lower = raw_variant.lower().strip()
+            if clean_lower in [
+                "a",
+                "cover a",
+                "standard",
+                "none",
+                "",
+            ] or clean_lower.endswith(" cover a"):
+                return ""
+
+            # Explicit 'Cover B' / 'Variant C' matches in text
+            cover_match = re.search(
+                r"(?:cover|variant)\s*([a-zA-Z])(?![a-zA-WY-Z])",
+                raw_variant,
+                re.IGNORECASE,
+            )
+            if cover_match:
+                char = cover_match.group(1).upper()
+                return char if char != "A" else ""
+
+            # Standalone starting letter (e.g. "B - J. Scott Campbell")
+            start_match = re.search(r"^([a-zA-Z])\b", raw_variant.strip())
+            if start_match:
+                char = start_match.group(1).upper()
+                return char if char != "A" else ""
+
+        # Parse 16th digit from 17-digit barcode (1=A, 2=B, 3=C, 4=D, 5=E, 6=F, 7=G)
+        clean_upc = "".join(c for c in str(upc) if c.isdigit())
+        if len(clean_upc) >= 16:
+            cover_digit = int(clean_upc[15])
+            if cover_digit > 1:
+                return chr(64 + cover_digit)  # 2->B, 3->C, 4->D, 5->E, 6->F, 7->G
+            elif cover_digit == 1:
+                return ""
+
+        # Fallback index mapping
+        if fallback_idx > 0:
+            return chr(66 + (fallback_idx - 1)) if fallback_idx <= 25 else "VAR"
+
+        return ""
+
+    def build_ipn(
+        self,
+        pub_code: str,
+        base_ipn_slug: str,
+        issue_number,
+        volume,
+        variant_char: str = "",
+    ) -> str:
+        """Generates standard IPN string."""
+        issue_slug = str(issue_number).zfill(3)
+        suffix = variant_char.upper() if variant_char else ""
+
+        if volume and str(volume) != "1":
+            return f"CB_{pub_code}_{base_ipn_slug}_V{volume}-{issue_slug}{suffix}"
+        return f"CB_{pub_code}_{base_ipn_slug}-{issue_slug}{suffix}"
+
     def post(self, request, *args, **kwargs):
         barcode = request.data.get("barcode", "")
         metron_id = request.data.get("metron_id", "")
@@ -111,7 +173,6 @@ class Spectacle(APIView):
                 status=400,
             )
 
-        # Standardize Barcode if provided
         barcode = "".join(c for c in str(barcode) if c.isdigit())
 
         if barcode and len(barcode) < 12 and not metron_id:
@@ -161,12 +222,9 @@ class Spectacle(APIView):
             auth = requests.auth.HTTPBasicAuth(metron_user, metron_pass)
 
             if MOKKARI_AVAILABLE:
-                logger.info("Spectacle: MOKKARI_AVAILABLE: %s", MOKKARI_AVAILABLE)
-
                 try:
                     api = mokkari.api(metron_user, metron_pass)
                     issues = api.issues_list({"upc": target_upc})
-                    logger.info("Spectacle: issues: %s", issues)
 
                     if not issues and target_upc != original_barcode:
                         issues = api.issues_list({"upc": original_barcode})
@@ -176,7 +234,6 @@ class Spectacle(APIView):
                         time.sleep(0.5)
 
                         issue = api.issue(issue_id)
-                        logger.info("Spectacle: issue: %s", issue)
 
                         raw_mokkari_price = getattr(issue, "price", None)
                         cleaned_mokkari_price = self.clean_price_string(
@@ -219,7 +276,6 @@ class Spectacle(APIView):
                             or getattr(issue, "description", ""),
                         }
 
-                        # Raw Mokkari variant list
                         raw_variants = getattr(issue, "variants", []) or []
                         all_issue_variants = []
 
@@ -248,7 +304,6 @@ class Spectacle(APIView):
                 except Exception as mk_err:
                     logger.warning("Mokkari lookup failed, falling back: %s", mk_err)
 
-            # Direct API Fallback
             if not issue_id:
                 logger.info("Spectacle: Direct API fallback for UPC: %s", target_upc)
                 resp = requests.get(
@@ -259,15 +314,11 @@ class Spectacle(APIView):
                     timeout=15,
                 )
 
-                logger.info("Spectacle: 200:resp.status_code: %s", resp.status_code)
-
                 if resp.status_code == 200:
                     results = resp.json().get("results", [])
-                    logger.info("Spectacle: 200:results: %s", results)
 
                     if results:
                         issue_id = results[0].get("id")
-
                         time.sleep(0.5)
 
                         detail_resp = requests.get(
@@ -275,12 +326,6 @@ class Spectacle(APIView):
                             auth=auth,
                             headers=headers,
                             timeout=15,
-                        )
-
-                        logger.info(
-                            "Spectacle: 200:url: https://metron.cloud/api/issue/%s/ | detail_resp: %s",
-                            issue_id,
-                            detail_resp,
                         )
 
                         if detail_resp.status_code == 200:
@@ -293,7 +338,6 @@ class Spectacle(APIView):
                                     variant_upc = str(
                                         variant.get("upc") or variant.get("sku") or ""
                                     )
-
                                     clean_variant_upc = "".join(
                                         c for c in variant_upc if c.isdigit()
                                     )
@@ -310,7 +354,6 @@ class Spectacle(APIView):
                                         "upc": clean_variant_upc,
                                     })
 
-            # Store in cache for 2 minutes
             if full_anchor:
                 cache.set(
                     cache_key,
@@ -327,19 +370,12 @@ class Spectacle(APIView):
                 status=404,
             )
 
-        # --- 2. SEARCH VARIANTS DATASET FOR MATCHING BARCODE ---
         matched_variant = None
         for var in all_issue_variants:
             if var.get("upc") == original_barcode:
                 matched_variant = var
-                logger.info(
-                    "Spectacle: Found matching variant for %s -> %s",
-                    original_barcode,
-                    var.get("name"),
-                )
                 break
 
-        # --- 3. BUILD RESPONSE DATA ---
         series_dict = full_anchor.get("series", {})
         series_name = self.clean_text_encoding(series_dict.get("name", "").strip())
         volume = series_dict.get("volume")
@@ -370,154 +406,174 @@ class Spectacle(APIView):
                     break
 
         category = constants.PUBLISHER_PART_CATEGORIES.get(pub_code, 1)
-
-        # Determine variant attributes & variant-specific pricing
-        if matched_variant:
-            raw_variant = self.clean_text_encoding(matched_variant.get("name", ""))
-            variant_image = matched_variant.get("image") or str(
-                full_anchor.get("image", "")
-            )
-            variant_id = matched_variant.get("id") or full_anchor.get("id")
-            raw_price = matched_variant.get("price") or full_anchor.get("price")
-        else:
-            raw_variant = self.clean_text_encoding(
-                full_anchor.get("variant") or full_anchor.get("cover") or ""
-            ).strip()
-            variant_image = str(full_anchor.get("image", ""))
-            variant_id = full_anchor.get("id")
-            raw_price = full_anchor.get("price")
-
-        price = self.clean_price_string(raw_price)
-
-        is_cover_a = False
-        if raw_variant:
-            clean_variant_lower = raw_variant.lower().strip()
-            if clean_variant_lower in [
-                "a",
-                "cover a",
-                "standard",
-                "none",
-                "",
-            ] or clean_variant_lower.endswith(" cover a"):
-                is_cover_a = True
-
-        variant_ipn_char = ""
-        if raw_variant and not is_cover_a:
-            cover_match = re.search(
-                r"(?:cover|variant)\s*([a-zA-Z])(?![a-zA-WY-Z])",
-                raw_variant,
-                re.IGNORECASE,
-            )
-            if cover_match:
-                variant_ipn_char = cover_match.group(1).upper()
-            else:
-                start_match = re.search(r"^([a-zA-Z])\b", raw_variant.strip())
-                if start_match:
-                    variant_ipn_char = start_match.group(1).upper()
-
-        if variant_ipn_char in ["A", ""]:
-            variant_ipn_char = ""
-            is_cover_a = True
-
-        if (
-            raw_variant
-            and raw_variant.lower() not in ["standard", "none", ""]
-            and not is_cover_a
-        ):
-            variant_val = raw_variant
-            display_suffix = f" - {raw_variant}"
-        else:
-            variant_val = "Standard"
-            display_suffix = ""
+        base_ipn_slug = self.shorten_series_name(series_name)
 
         raw_desc = strip_html(
             full_anchor.get("desc") or full_anchor.get("description", "")
         )
-
-        # Ensures total length <= 250 and breaks on word boundaries
         clean_description = textwrap.shorten(raw_desc, width=250, placeholder="...")
 
-        base_ipn_slug = self.shorten_series_name(series_name)
-        issue_slug = str(issue_number).zfill(3)
-        variant_suffix = (
-            variant_ipn_char if (variant_ipn_char and not is_cover_a) else ""
-        )
-
-        if volume and str(volume) != "1":
-            ipn = (
-                f"CB_{pub_code}_{base_ipn_slug}_V{volume}-{issue_slug}{variant_suffix}"
+        if matched_variant:
+            raw_variant_name = self.clean_text_encoding(matched_variant.get("name", ""))
+            scanned_image = matched_variant.get("image") or str(
+                full_anchor.get("image", "")
+            )
+            scanned_metron_id = matched_variant.get("id") or full_anchor.get("id")
+            scanned_price = self.clean_price_string(
+                matched_variant.get("price") or full_anchor.get("price")
             )
         else:
-            ipn = f"CB_{pub_code}_{base_ipn_slug}-{issue_slug}{variant_suffix}"
+            raw_variant_name = self.clean_text_encoding(
+                full_anchor.get("variant") or full_anchor.get("cover") or ""
+            ).strip()
+            scanned_image = str(full_anchor.get("image", ""))
+            scanned_metron_id = full_anchor.get("id")
+            scanned_price = self.clean_price_string(full_anchor.get("price"))
 
-        rounded_price = ""
-        if price:
+        scanned_v_char = self.extract_variant_char(
+            raw_variant_name, upc=original_barcode
+        )
+        is_cover_a = not scanned_v_char
+
+        if is_cover_a:
+            variant_label = "Standard"
+            display_title = f"{series_name} #{issue_number}"
+        else:
+            variant_label = raw_variant_name
+            cover_prefix = (
+                f"Cover {scanned_v_char} "
+                if not re.search(r"\bcover\b", raw_variant_name, re.I)
+                else ""
+            )
+            display_title = (
+                f"{series_name} #{issue_number} - {cover_prefix}{raw_variant_name}"
+            )
+
+        scanned_ipn = self.build_ipn(
+            pub_code, base_ipn_slug, issue_number, volume, scanned_v_char
+        )
+
+        whatnot_price = ""
+        if scanned_price:
             try:
-                rounded_price = str(math.ceil(float(price)))
+                whatnot_price = str(math.ceil(float(scanned_price)))
             except Exception:
-                rounded_price = ""
+                whatnot_price = ""
 
         comic_data = {
-            "title": f"{series_name} #{issue_number}{display_suffix}",
-            "ipn_proposed": ipn,
+            "title": display_title,
+            "ipn_proposed": scanned_ipn,
             "series": series_name,
             "issue": str(issue_number),
             "volume": str(volume) if volume else None,
             "publisher": raw_publisher_name,
             "category": category,
             "pub_code": pub_code,
-            "variant": variant_val,
+            "variant": variant_label,
             "description": clean_description,
-            "metron_url": f"https://metron.cloud/issue/{variant_id}/",
-            "metron_id": int(variant_id),
-            "image_url": str(variant_image),
-            "part_link": f"https://metron.cloud/issue/{variant_id}/",
+            "metron_url": f"https://metron.cloud/issue/{scanned_metron_id}/",
+            "metron_id": int(scanned_metron_id),
+            "image_url": str(scanned_image),
+            "part_link": f"https://metron.cloud/issue/{scanned_metron_id}/",
             "listed_on_whatnot": True,
-            "price": price,
-            "whatnot_price": rounded_price,
+            "price": scanned_price,
+            "whatnot_price": whatnot_price,
             "store_date": store_date_str,
+            "upc": original_barcode,
         }
 
-        # Primary/Matched Variant Output
+        cover_a_price = self.clean_price_string(full_anchor.get("price"))
+        cover_a_wn_price = ""
+        if cover_a_price:
+            try:
+                cover_a_wn_price = str(math.ceil(float(cover_a_price)))
+            except Exception:
+                cover_a_wn_price = ""
+
+        cover_a_raw_var = self.clean_text_encoding(
+            full_anchor.get("variant") or full_anchor.get("cover") or ""
+        ).strip()
+        cover_a_label = (
+            cover_a_raw_var
+            if cover_a_raw_var
+            and cover_a_raw_var.lower() not in ["none", "a", "cover a"]
+            else "Standard"
+        )
+        cover_a_display = f"{series_name} #{issue_number}"
+        cover_a_ipn = self.build_ipn(pub_code, base_ipn_slug, issue_number, volume, "")
+        cover_a_metron_id = int(full_anchor.get("id"))
+
+        cover_a_is_match = (original_barcode == standard_barcode) or (
+            not matched_variant
+        )
+
         variants_list = [
             {
-                "metron_id": int(variant_id),
-                "variant": variant_val,
-                "display_name": f"{series_name} #{issue_number}{display_suffix}",
-                "image_url": str(variant_image),
+                "metron_id": cover_a_metron_id,
+                "variant": cover_a_label,
+                "display_name": cover_a_display,
+                "ipn_proposed": cover_a_ipn,
+                "image_url": str(full_anchor.get("image", "")),
                 "description": clean_description,
-                "upc": original_barcode,
-                "price": price,
-                "whatnot_price": rounded_price,
-                "is_scanned_match": True,
+                "upc": standard_barcode,
+                "price": cover_a_price,
+                "whatnot_price": cover_a_wn_price,
+                "is_scanned_match": cover_a_is_match,
             }
         ]
 
-        # Add remaining variants to response list with their price details
-        for variant in all_issue_variants:
+        for idx, variant in enumerate(all_issue_variants, start=1):
             variant_upc = variant.get("upc", "")
-            if variant_upc and variant_upc != original_barcode:
-                variant_name = self.clean_text_encoding(variant.get("name", "Variant"))
-                variant_price = variant.get("price") or price
 
-                variant_rounded_price = ""
-                if variant_price:
-                    try:
-                        variant_rounded_price = str(math.ceil(float(variant_price)))
-                    except Exception:
-                        variant_rounded_price = ""
+            if (
+                variant_upc == standard_barcode
+                or variant.get("id") == cover_a_metron_id
+            ):
+                continue
 
-                variants_list.append({
-                    "metron_id": variant.get("id"),
-                    "variant": str(variant_name),
-                    "display_name": f"{series_name} #{issue_number} - {variant_name}",
-                    "image_url": variant.get("image", ""),
-                    "description": clean_description,
-                    "upc": variant_upc,
-                    "price": variant_price,
-                    "whatnot_price": variant_rounded_price,
-                    "is_scanned_match": False,
-                })
+            v_name = self.clean_text_encoding(variant.get("name", "Variant"))
+            v_price = self.clean_price_string(variant.get("price") or cover_a_price)
+
+            v_char = self.extract_variant_char(
+                v_name, upc=variant_upc, fallback_idx=idx
+            )
+            v_ipn = self.build_ipn(
+                pub_code, base_ipn_slug, issue_number, volume, v_char
+            )
+
+            v_cover_prefix = (
+                f"Cover {v_char} "
+                if (v_char and not re.search(r"\bcover\b", v_name, re.I))
+                else ""
+            )
+            v_display_name = f"{series_name} #{issue_number} - {v_cover_prefix}{v_name}"
+
+            v_wn_price = ""
+            if v_price:
+                try:
+                    v_wn_price = str(math.ceil(float(v_price)))
+                except Exception:
+                    v_wn_price = ""
+
+            v_is_match = False
+            if matched_variant and (
+                variant_upc == original_barcode
+                or variant.get("id") == matched_variant.get("id")
+            ):
+                v_is_match = True
+
+            variants_list.append({
+                "metron_id": variant.get("id"),
+                "variant": str(v_name),
+                "display_name": v_display_name,
+                "ipn_proposed": v_ipn,
+                "image_url": variant.get("image", ""),
+                "description": clean_description,
+                "upc": variant_upc,
+                "price": v_price,
+                "whatnot_price": v_wn_price,
+                "is_scanned_match": v_is_match,
+            })
 
         return Response(
             {
