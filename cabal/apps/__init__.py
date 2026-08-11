@@ -7,7 +7,10 @@ from .avisia.avisia import (
     clear_customers as clear_customers,
 )
 from .cerebro import Cerebro as Cerebro
-from .nexus import Nexus as Nexus
+from .nexus import (
+    Nexus as Nexus,
+    AttachPartImageView as AttachPartImageView,
+)
 from .spectacle import Spectacle as Spectacle
 from .syncroth.syncroth import Syncroth as Syncroth
 from .syncroth.pdf import WeeklyReportPDFView as WeeklyReportPDFView

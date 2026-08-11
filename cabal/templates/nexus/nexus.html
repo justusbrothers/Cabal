@@ -61,7 +61,32 @@
                                     <th class="text-center text-info">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody id="previewTableBody"></tbody>
+                            <tbody id="previewTableBody">
+                                {% if preview_rows %}
+                                    {% for row in preview_rows %}
+                                        <tr class="parent-comic-row align-middle" id="row-global-{{ forloop.counter0 }}">
+                                            {% for cell in row %}
+                                                <td>
+                                                    {% if cell %}
+                                                        {{ cell }}
+                                                    {% else %}
+                                                        <span class="text-danger italic small">[empty]</span>
+                                                    {% endif %}
+                                                </td>
+                                            {% endfor %}
+                                            <td class="text-center">
+                                                <div class="d-flex align-items-center justify-content-center gap-1">
+                                                    <button type="button" class="btn btn-sm btn-outline-info scan-upc-btn" data-global-index="{{ forloop.counter0 }}">🔍 Scan</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="20" class="text-center text-muted p-4">No data loaded. Upload a CSV file above to populate the table.</td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
                         </table>
                     </div>
                 </div>
@@ -75,18 +100,18 @@
             </div>
             {% endif %}
 
-            <div class="card shadow-sm border-0 h-100">
+            <div class="card shadow-sm border-0 h-100 mb-3">
                 <div class="card-header bg-body-tertiary py-2">
-                    <h6 class="mb-0 font-monospace text-muted">📋 Imported Session IPNs</h6>
+                    <h6 class="mb-0 font-monospace text-muted">📋 Imported Session IPNs & Logs</h6>
                 </div>
 
                 <div class="card-body p-0">
-                    <textarea id="sessionIpnLog" class="form-control font-monospace text-success border-0 rounded-0 h-100" style="min-height: 120px;" readonly placeholder="Imported IPNs will stream here automatically..."></textarea>
+                    <textarea id="sessionIpnLog" class="form-control font-monospace text-success border-0 rounded-0 h-100" style="min-height: 140px;" readonly placeholder="Imported IPNs and batch execution logs will stream here automatically..."></textarea>
                 </div>
             </div>
 
             {% if preview_rows %}
-            <div class="card shadow-sm border-0 h-100">
+            <div class="card shadow-sm border-0 h-100 mb-3">
                 <div class="card-header bg-body-tertiary py-2">
                     <h6 class="mb-0 font-monospace text-muted">📋 Reports / Exports</h6>
                 </div>
@@ -98,22 +123,29 @@
             </div>
             {% endif %}
 
-            <div class="d-flex flex-wrap gap-2 pt-3 border-top border-secondary">
             <!-- Controls Section -->
-            <div class="d-flex align-items-center gap-2">
-                <button id="startBatchBtn" type="button" class="btn btn-primary font-monospace" onclick="runAutomatedBatch()">
-                    ⚡ Run Automated Batch
-                </button>
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 pt-3 border-top border-secondary">
+                <div class="d-flex align-items-center gap-3">
+                    <button id="startBatchBtn" type="button" class="btn btn-primary font-monospace" onclick="runAutomatedBatch()">
+                        ⚡ Run Automated Batch
+                    </button>
 
-                <button id="stopBatchBtn" type="button" class="btn btn-outline-danger font-monospace" onclick="stopAutomatedBatch()" disabled>
-                    🛑 Stop
-                </button>
+                    <button id="stopBatchBtn" type="button" class="btn btn-outline-danger font-monospace">
+                        🛑 Stop
+                    </button>
+
+                    <!-- Dry Run Switch Toggle -->
+                    <div class="form-check form-switch mb-0 ms-2">
+                        <input class="form-check-input" type="checkbox" role="switch" id="dryRunToggle" checked>
+                        <label class="form-check-label font-monospace fw-bold text-warning" for="dryRunToggle">
+                            🧪 Dry Run Mode
+                        </label>
+                    </div>
+                </div>
+
+                <span class="text-muted small font-monospace"><i class="bi bi-shield-lock"></i> Rate Limit Protection: 1.2s delay/req</span>
             </div>
-
-            <span class="text-muted small font-monospace"><i class="bi bi-shield-lock"></i> Rate Limit Protection: 1.2s delay/req</span>
         </div>
-        </div>
-
     </div>
 </div>
 
@@ -138,61 +170,19 @@
     </div>
 </div>
 
+{{ full_headers|json_script:"full-headers-matrix" }}
 {{ preview_rows|json_script:"preview-data-matrix" }}
+{{ full_rows|json_script:"full-data-matrix" }}
 {% endblock %}
 
 {% block extra_js %}
 <!-- Excel library unique to Nexus -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
-<script>
-    let previewRows = JSON.parse(document.getElementById('preview-data-matrix').textContent || '[]');
-
-    document.addEventListener('DOMContentLoaded', function() {
-        if (previewRows && previewRows.length > 0) {
-            filterAndRenderMatrix();
-        }
-    });
-
-    let activeBatchProcessor = null;
-
-    function runAutomatedBatch() {        
-        if (!previewRows || previewRows.length === 0) {
-            alert("No CSV rows loaded to process.");
-            return;
-        }
-
-        document.getElementById('startBatchBtn').disabled = true;
-        document.getElementById('stopBatchBtn').disabled = false;
-
-        const structuredRows = previewRows.map(r => ({
-            title: r[0],
-            upc: r[1],
-            ipn: r[2],
-            retail: r[3],
-            qty: r[4]
-        }));
-
-        activeBatchProcessor = new InvenTreeBatchProcessor({ delayMs: 1200 });
-        activeBatchProcessor.startBatch(structuredRows).then(() => {
-            document.getElementById('startBatchBtn').disabled = false;
-            document.getElementById('stopBatchBtn').disabled = true;
-        });
-    }
-
-    function stopAutomatedBatch() {
-        if (activeBatchProcessor) {
-            activeBatchProcessor.stop();
-            document.getElementById('startBatchBtn').disabled = false;
-            document.getElementById('stopBatchBtn').disabled = true;
-        }
-    }
-</script>
-
 <script src="{% static 'plugins/cabal/cabal/js/nexus/_config.js' %}"></script>
+<script src="{% static 'plugins/cabal/cabal/js/nexus/_utils.js' %}"></script>
 <script src="{% static 'plugins/cabal/cabal/js/nexus/_matrix_table.js' %}"></script>
 <script src="{% static 'plugins/cabal/cabal/js/nexus/_comic_lookup.js' %}"></script>
 <script src="{% static 'plugins/cabal/cabal/js/nexus/_inventree_ingest.js' %}"></script>
 <script src="{% static 'plugins/cabal/cabal/js/nexus/_batch_processor.js' %}"></script>
-<script src="{% static 'plugins/cabal/cabal/js/nexus/_utils.js' %}"></script>
 {% endblock %}

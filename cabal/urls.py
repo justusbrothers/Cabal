@@ -3,6 +3,7 @@
 from django.urls import path
 
 from .apps import (
+    AttachPartImageView,
     Avisia,
     Cerebro,
     Syncroth,
@@ -26,6 +27,7 @@ urlpatterns = [
         "api/avisia/customers/upload/", upload_customers, name="avisia-upload-customers"
     ),
     path("api/avisia/customers/clear/", clear_customers, name="avisia-clear-customers"),
+    path("attach-image/", AttachPartImageView.as_view(), name="attach-image"),
     path("avisia/", Avisia.as_view(), name="avisia"),
     path("cerebro/", Cerebro, name="cerebro"),
     path("nexus/", Nexus.as_view(), name="nexus"),

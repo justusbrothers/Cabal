@@ -7,12 +7,17 @@ from io import BytesIO, StringIO
 
 import pandas as pd
 import numpy as np
+import requests
 from django.shortcuts import render
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.clickjacking import xframe_options_sameorigin
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
+from django.core.files.base import ContentFile
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
 
+from part.models import Part
 from cabal.utils import clean_text
 
 logger = logging.getLogger("inventree")
@@ -38,9 +43,16 @@ class Nexus(View):
 
         if csv_file:
             try:
+                logger.info(
+                    f"[Nexus] Received file upload: {getattr(csv_file, 'name', 'unknown')} (Size: {csv_file.size} bytes)"
+                )
+
                 # 1. Process base metrics & perform distributor column scrubbing
                 df, auto_suffix, is_penguin = self.process_distributor_csv(csv_file)
                 context["total_rows"] = len(df)
+                logger.debug(
+                    f"[Nexus] Post-processing complete. Final DataFrame rows: {len(df)}, Vendor Type: {'Penguin' if is_penguin else 'Lunar'}"
+                )
 
                 # --- Filename Date Suffix Selector ---
                 raw_suffix = request.POST.get("file_suffix", "").strip()
@@ -50,6 +62,7 @@ class Nexus(View):
                     clean_suffix = raw_suffix.replace("/", "").replace("\\", "")
 
                 request.session["file_suffix"] = clean_suffix
+                logger.debug(f"[Nexus] File suffix configured as: '{clean_suffix}'")
 
                 # --- Dynamic League of Comic Geeks Search URL Generator ---
                 issue_regex = re.compile(r"(?:#\s*|(?<=\s))(\d+)\b", re.IGNORECASE)
@@ -86,33 +99,33 @@ class Nexus(View):
                     excel_formula = f'=HYPERLINK("{full_url}", "View on LoCG")'
                     generated_links.append(excel_formula)
 
-                # Populate the Geeks Link column if it exists in the active dataframe
-                if "Geeks Link" in df.columns:
-                    df["Geeks Link"] = generated_links
-
-                # Store complete structured data frame into session for multi-sheet download matching
+                # Store complete structured data frame into session for multi-sheet download & batch creation matching
                 request.session["lunar_df"] = df.to_json(orient="split")
                 request.session.modified = True
 
                 # --- Build Full Data Block for Client-Side UI ---
                 ui_display_df = df.copy()
+                if "Discounted Price" in ui_display_df.columns:
+                    ui_display_df = ui_display_df.drop(columns=["Discounted Price"])
 
                 # --- ALWAYS LOOK FOR UPC BECAUSE PENGUIN DATA WAS NORMALIZED TO UPC ---
                 upc_col_index = -1
                 if "UPC" in ui_display_df.columns:
                     upc_col_index = list(ui_display_df.columns).index("UPC")
 
-                context["upc_column_index"] = (
-                    upc_col_index  # Pass exact column target to template view
-                )
+                context["upc_column_index"] = upc_col_index
                 context["preview_headers"] = list(ui_display_df.columns)
                 context["preview_rows"] = ui_display_df.values.tolist()
+
+                # --- Pass full matrix data and headers to fix client-side fullRows hydration ---
+                context["full_headers"] = list(df.columns)
+                context["full_rows"] = df.values.tolist()
 
                 # UPC/ISBN Validation loop
                 missing = []
                 for i, row in df.iterrows():
-                    # --- REPLACED: Changed to look for uniform 'UPC' column ---
                     upc = str(row.get("UPC", "")).strip()
+
                     if not upc or upc.lower() in ("", "null", "none", "n/a"):
                         missing.append({
                             "row": i + 2,
@@ -132,9 +145,14 @@ class Nexus(View):
                 if missing:
                     import_message += f" Found {len(missing)} missing identifiers."
                 context["import_message"] = import_message
+                logger.info(
+                    f"[Nexus] Successfully rendered page context. {import_message}"
+                )
 
             except Exception as e:
-                logger.exception("Processing error")
+                logger.exception(
+                    "[Nexus] Critical processing error encountered during file handling."
+                )
                 context["errors"].append(f"Error: {str(e)}")
 
         return render(request, self.template_name, context)
@@ -144,63 +162,87 @@ class Nexus(View):
         file_content = csv_file.read().decode("utf-8-sig")
         lines = file_content.splitlines()
 
+        logger.debug(
+            f"[Nexus CSV Parser] File read complete. Total raw lines: {len(lines)}"
+        )
+
         # Schema Sniffer Setup
         first_line = lines[0].lower() if lines else ""
         is_penguin = (
             "isbn" in first_line or "carton #" in first_line or "on sale" in first_line
         )
+        logger.debug(
+            f"[Nexus CSV Parser] Sniffed layout -> is_penguin: {is_penguin}. First line sample: {first_line[:120]}"
+        )
 
         data_lines = []
         header_found = False
 
-        for line in lines:
+        for line_num, line in enumerate(lines, 1):
             stripped = line.strip()
             if not header_found:
                 if is_penguin and (
-                    "carton #," in stripped or "isbn," in stripped.lower()
+                    "carton #," in stripped.lower() or "isbn," in stripped.lower()
                 ):
                     header_found = True
                     data_lines.append(line)
+                    logger.debug(
+                        f"[Nexus CSV Parser] Penguin header matched at line {line_num}: {stripped[:100]}"
+                    )
                     continue
                 elif not is_penguin and (
                     stripped.startswith("Code,") or "Code,Title" in stripped
                 ):
                     header_found = True
                     data_lines.append(line)
+                    logger.debug(
+                        f"[Nexus CSV Parser] Lunar header matched at line {line_num}: {stripped[:100]}"
+                    )
                     continue
                 continue
             if header_found:
                 data_lines.append(line)
 
         if not data_lines:
+            logger.warning(
+                "[Nexus CSV Parser] Header sniff failed to locate expected column markers. Falling back to raw lines."
+            )
             data_lines = lines
+        else:
+            logger.debug(
+                f"[Nexus CSV Parser] Extracted {len(data_lines)} lines following header identification."
+            )
 
         df = pd.read_csv(StringIO("\n".join(data_lines)), dtype=str)
+        logger.debug(
+            f"[Nexus CSV Parser] Initial DataFrame loaded. Shape: {df.shape}, Columns: {list(df.columns)}"
+        )
 
         # -----------------------------------------------------------------
         # GLOBAL SANITIZER INJECTION (BEFORE PART CREATION / MERGING)
         # -----------------------------------------------------------------
-        # Clean string columns right at ingestion to catch bad encoding/Mojibake
         text_cols = ["Title", "Description", "Name", "Category", "Publisher"]
         for col in text_cols:
             if col in df.columns:
+                # before_sample = df[col].head(2).tolist()
                 df[col] = df[col].astype(str).apply(clean_text)
+                logger.debug(
+                    f"[Nexus CSV Parser] Sanitized text column '{col}'. Sample before/after check completed."
+                )
 
         # -----------------------------------------------------------------
         # NEW HEADERS NORMALIZATION BLOCK
         # -----------------------------------------------------------------
-        # If it's a Penguin file, seamlessly rewrite headers to look like Lunar.
-        # This feeds your exact existing logic block without breaking anything.
         if is_penguin:
             df = df.rename(columns={"ISBN": "UPC", "Quantity": "Qty"})
+            logger.debug(
+                "[Nexus CSV Parser] Applied Penguin header renames: ISBN -> UPC, Quantity -> Qty"
+            )
 
         auto_suffix = ""
         if is_penguin:
-            # Grouping key validation setup for standard aggregates
-            # --- REPLACED: Now maps to normalized 'Qty' ---
             df["Qty"] = pd.to_numeric(df["Qty"], errors="coerce").fillna(0)
 
-            # Extract date target string (e.g., "2026-07-15" -> "0715")
             if "On Sale" in df.columns:
                 valid_dates = df["On Sale"].dropna().astype(str).str.strip()
                 valid_dates = valid_dates[valid_dates != ""]
@@ -211,19 +253,23 @@ class Nexus(View):
                     )
                     if date_match:
                         auto_suffix = date_match.group(2) + date_match.group(3)
+                        logger.debug(
+                            f"[Nexus CSV Parser] Penguin auto_suffix resolved: {auto_suffix} from date {most_frequent_date}"
+                        )
 
-            # Perform duplicate merge accumulation using the UPC (was ISBN) as structural tracking index
-            # --- REPLACED: 'Quantity' changed to 'Qty', 'ISBN' changed to 'UPC' ---
             agg_dict = {"Qty": "sum"}
             for col in df.columns:
                 if col not in ["Qty", "UPC"]:
                     agg_dict[col] = "first"
 
+            pre_group_len = len(df)
             grouped = df.groupby("UPC", as_index=False).agg(agg_dict)
+            logger.debug(
+                f"[Nexus CSV Parser] Penguin grouping by UPC complete. Rows reduced from {pre_group_len} to {len(grouped)}"
+            )
 
-            # Strict Penguin layout containing Geeks Link explicitly
-            # --- REPLACED: Rewritten to maintain normalized headers ---
-            penguin_columns = ["Title", "UPC", "Qty", "Geeks Link"]
+            penguin_columns = ["Title", "UPC", "Qty"]
+
             for col in penguin_columns:
                 if col not in grouped.columns:
                     grouped[col] = ""
@@ -243,8 +289,13 @@ class Nexus(View):
                         )
                         if not pd.isna(parsed_date):
                             auto_suffix = parsed_date.strftime("%m%d")
-                    except Exception:
-                        pass
+                            logger.debug(
+                                f"[Nexus CSV Parser] Lunar auto_suffix resolved: {auto_suffix} from date {most_frequent_date}"
+                            )
+                    except Exception as exc:
+                        logger.debug(
+                            f"[Nexus CSV Parser] Failed to parse Lunar date string '{most_frequent_date}': {exc}"
+                        )
 
             df["Qty"] = pd.to_numeric(df["Qty"], errors="coerce").fillna(0)
 
@@ -253,12 +304,27 @@ class Nexus(View):
                 if col not in ["Qty", "Code"]:
                     agg_dict[col] = "first"
 
+            pre_group_len = len(df)
             grouped = df.groupby("Code", as_index=False).agg(agg_dict)
+
+            logger.debug(
+                f"[Nexus CSV Parser] Lunar grouping by Code complete. Rows reduced from {pre_group_len} to {len(grouped)}"
+            )
+            logger.debug(f"[Nexus CSV Parser] Grouped columns: {grouped}")
 
             if "Retail" in grouped.columns:
                 grouped["Retail"] = pd.to_numeric(
                     grouped["Retail"], errors="coerce"
                 ).fillna(0.0)
+
+            if "Discounted Price" in grouped.columns:
+                grouped["Discounted Price"] = pd.to_numeric(
+                    grouped["Discounted Price"], errors="coerce"
+                ).fillna(0.0)
+
+            logger.debug(
+                f"[Nexus CSV Parser] Grouped Discount Price: {grouped.get('Discounted Price', 'N/A')}"
+            )
 
             if "Title" in grouped.columns and "Qty" in grouped.columns:
                 bundle_regex = re.compile(
@@ -294,16 +360,18 @@ class Nexus(View):
                             updated_retail.append("")
 
                 grouped["Retail"] = updated_retail
+                logger.debug(
+                    "[Nexus CSV Parser] Applied bundle/ratio adjustments to Lunar retail values."
+                )
 
-            # Generate placeholders for standard structural UI lists
-            lunar_columns = ["Title", "UPC", "IPN", "Retail", "Qty", "Geeks Link"]
+            lunar_columns = ["Title", "UPC", "IPN", "Retail", "Discounted Price", "Qty"]
+
             for col in lunar_columns:
                 if col not in grouped.columns:
                     grouped[col] = ""
 
             grouped = grouped.reindex(columns=lunar_columns)
 
-        # Ensure titles stay sanitized after any grouping/reindexing operations
         if "Title" in grouped.columns:
             grouped["Title"] = grouped["Title"].astype(str).apply(clean_text)
 
@@ -315,8 +383,6 @@ class Nexus(View):
             def build_sort_tuple(row):
                 title_str = str(row.get("Title", "")).strip()
 
-                # 1. Primary Key: Extract everything up to the issue number (e.g., "AVENGERS: ARMAGEDDON #2")
-                # This drops all artist/variant text so they group together perfectly.
                 issue_match = re.search(
                     r"^(.*?(?:#\s*|\b\d+\s+Vol\b|\bNo\b)\d+)",
                     title_str,
@@ -327,9 +393,8 @@ class Nexus(View):
                 else:
                     primary_key = title_str.lower()
 
-                # 2. Secondary Key: Extract the 16th digit of a 17-digit barcode (index 15)
                 upc_str = str(row.get("UPC", "")).strip()
-                variant_index = 1  # Default fallback
+                variant_index = 1
 
                 if len(upc_str) == 17:
                     try:
@@ -339,15 +404,16 @@ class Nexus(View):
 
                 return (primary_key, variant_index)
 
-            # Apply custom compound sorting keys
             sort_keys = grouped.apply(build_sort_tuple, axis=1)
             grouped["_sort_key_title"] = [k[0] for k in sort_keys]
             grouped["_sort_key_variant"] = [k[1] for k in sort_keys]
 
-            # Execute sorted priority sequence assignment
             grouped = grouped.sort_values(
                 by=["_sort_key_title", "_sort_key_variant"], ascending=[True, True]
             ).drop(columns=["_sort_key_title", "_sort_key_variant"])
+            logger.debug(
+                f"[Nexus CSV Parser] Variant sorting completed. Final sorted dataframe row count: {len(grouped)}"
+            )
 
         return grouped, auto_suffix, is_penguin
 
@@ -355,17 +421,17 @@ class Nexus(View):
         """Download Excel file optionally splitting Cover A Items and moving empty Retail values to 'With Errors'"""
         df_json = request.session.get("lunar_df")
         if not df_json:
+            logger.warning(
+                "[Nexus Excel Download] Attempted Excel download with missing or expired session data."
+            )
             return HttpResponse(
                 "No processed file found or session expired.", status=400
             )
 
         file_suffix = request.session.get("file_suffix", "")
-
         df = pd.read_json(StringIO(df_json), orient="split")
 
-        # --- REPLACED: Uniform tracker layout, always looking for normalized UPC key ---
         upc_key = "UPC"
-
         if upc_key in df.columns:
             df[upc_key] = df[upc_key].fillna("").astype(str).str.strip()
 
@@ -375,6 +441,9 @@ class Nexus(View):
             )
             errors_df = df[is_empty_retail].copy()
             working_df = df[~is_empty_retail].copy()
+            logger.debug(
+                f"[Nexus Excel Download] Split rows into 'To Add' ({len(working_df)}) and 'With Errors' ({len(errors_df)}) due to empty retail values."
+            )
         else:
             errors_df = pd.DataFrame(columns=df.columns)
             working_df = df.copy()
@@ -436,6 +505,9 @@ class Nexus(View):
             content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
         response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        logger.info(
+            f"[Nexus Excel Download] Successfully generated and served Excel file: {filename}"
+        )
         return response
 
     def _get_default_context(self):
@@ -451,3 +523,54 @@ class Nexus(View):
             "preview_rows": [],
             "upc_column_index": -1,
         }
+
+
+class AttachPartImageView(APIView):
+    """Server-side endpoint to fetch external image bytes via requests and save to Part model directly."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        part_id = request.data.get("part_id")
+        image_url = request.data.get("image_url")
+
+        logger.debug(f"[Nexus:AttachPartImageView] part_id: '{part_id}'")
+        logger.debug(f"[Nexus:AttachPartImageView] image_url: '{image_url}'")
+
+        if not part_id or not image_url:
+            return JsonResponse(
+                {"success": False, "error": "Missing part_id or image_url"}, status=400
+            )
+
+        try:
+            # 1. Fetch image server-side to bypass CORS
+            img_res = requests.get(image_url, timeout=10)
+            if img_res.status_code != 200:
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "error": f"Failed to fetch image: HTTP {img_res.status_code}",
+                    },
+                    status=400,
+                )
+
+            # 2. Extract or generate filename
+            filename = image_url.split("/")[-1].split("?")[0] or f"part_{part_id}.jpg"
+
+            # 3. Retrieve Part using InvenTree ORM model
+            part = Part.objects.get(pk=part_id)
+
+            # 4. Save file directly to image field using ContentFile
+            part.image.save(filename, ContentFile(img_res.content), save=True)
+
+        except Part.DoesNotExist:
+            return JsonResponse(
+                {"success": False, "error": f"Part PK #{part_id} not found"}, status=404
+            )
+        except Exception as e:
+            return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+        return JsonResponse({
+            "success": True,
+            "message": f"Successfully attached {filename} to part {part_id}",
+        })
