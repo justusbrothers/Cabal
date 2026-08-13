@@ -20,14 +20,14 @@
             </li>
 
             <li class="d-flex align-items-stretch">
-                <button class="nav-tab-btn d-flex align-items-center px-3 border-0 bg-transparent h-100 position-relative" data-target="tab-syncroth">
-                    Syncroth
+                <button class="nav-tab-btn d-flex align-items-center px-3 border-0 bg-transparent h-100 position-relative" data-target="tab-vanguard">
+                    Vanguard
                 </button>
             </li>
 
             <li class="d-flex align-items-stretch">
-                <button class="nav-tab-btn d-flex align-items-center px-3 border-0 bg-transparent h-100 position-relative" data-target="tab-vanguard">
-                    Vanguard
+                <button class="nav-tab-btn d-flex align-items-center px-3 border-0 bg-transparent h-100 position-relative" data-target="tab-syncroth">
+                    Syncroth
                 </button>
             </li>
 
@@ -94,16 +94,16 @@
     </iframe>
 
     <iframe 
-        id="tab-syncroth" 
+        id="tab-vanguard" 
         class="tab-panel w-100 h-100 border-0" 
-        src="{% url 'plugin:cabal:syncroth' %}"
+        src="{% url 'plugin:cabal:vanguard' %}"
         loading="lazy">
     </iframe>
 
     <iframe 
-        id="tab-vanguard" 
+        id="tab-syncroth" 
         class="tab-panel w-100 h-100 border-0" 
-        src="{% url 'plugin:cabal:vanguard' %}"
+        src="{% url 'plugin:cabal:syncroth' %}"
         loading="lazy">
     </iframe>
 
