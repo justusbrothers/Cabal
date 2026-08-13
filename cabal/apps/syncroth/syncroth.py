@@ -51,11 +51,11 @@ class Syncroth(View):
 
     def get_parameter_value(self, part, parameter_name, default=None):
         try:
-            # Native InvenTree relation lookup (if using part.parameters)
             if hasattr(part, "parameters"):
                 param = part.parameters.filter(
                     template__name__iexact=parameter_name
                 ).first()
+
                 if param:
                     return param.data
 
@@ -66,9 +66,11 @@ class Syncroth(View):
                 model_id=part.pk,
                 template__name__iexact=parameter_name,
             )
+
             return parameter.data
         except Exception as e:
             logger.warning(f"Error getting parameter '{parameter_name}': {e}")
+
             return default
 
     def get_listing_price(self, part, override_param_names=None):
@@ -104,9 +106,11 @@ class Syncroth(View):
         if override_param_names:
             for param_name in override_param_names:
                 val = self.get_parameter_value(part, param_name)
+
                 if val is not None and str(val).strip() != "":
                     try:
                         clean_val = str(val).replace("$", "").replace(",", "").strip()
+
                         return float(clean_val)
                     except (ValueError, TypeError):
                         continue
@@ -157,6 +161,7 @@ class Syncroth(View):
 
     def process_request(self, request, source):
         ipn_list = request.POST.get("ipn_list") or request.GET.get("ipn_list")
+
         if ipn_list:
             request.session["active_ipn_list"] = ipn_list
 
@@ -177,26 +182,27 @@ class Syncroth(View):
         parser_name = source.get("parser", "whatnot").strip()
         output_format = source.get("format", "").strip()
         in_stock_date = source.get("in_stock_date", "").strip()
+        # item_cost = source.get("in_stock_date", "").strip()
 
-        logger.info("syncroth:process_request:================")
-        logger.info("syncroth:process_request:request: %s", request)
-        logger.info("syncroth:process_request:source: %s", source)
+        # logger.info("syncroth:process_request:================")
+        # logger.info("syncroth:process_request:request: %s", request)
+        # logger.info("syncroth:process_request:source: %s", source)
 
-        logger.info("syncroth:process_request:ipn_list: %s", ipn_list)
-        logger.info("syncroth:process_request:whatnot_only: %s", whatnot_only)
-        logger.info(
-            "syncroth:process_request:selected_location_id: %s",
-            selected_location_id,
-        )
-        logger.info("syncroth:process_request:url_ipn_list: %s", url_ipn_list)
-        logger.info(
-            "syncroth:process_request:whatnot_listing_type: %s",
-            whatnot_listing_type,
-        )
-        logger.info("syncroth:process_request:parser_name: %s", parser_name)
-        logger.info("syncroth:process_request:output_format: %s", output_format)
-        logger.info("syncroth:process_request:in_stock_date: %s", in_stock_date)
-        logger.info("syncroth:process_request:================")
+        # logger.info("syncroth:process_request:ipn_list: %s", ipn_list)
+        # logger.info("syncroth:process_request:whatnot_only: %s", whatnot_only)
+        # logger.info(
+        #     "syncroth:process_request:selected_location_id: %s",
+        #     selected_location_id,
+        # )
+        # logger.info("syncroth:process_request:url_ipn_list: %s", url_ipn_list)
+        # logger.info(
+        #     "syncroth:process_request:whatnot_listing_type: %s",
+        #     whatnot_listing_type,
+        # )
+        # logger.info("syncroth:process_request:parser_name: %s", parser_name)
+        # logger.info("syncroth:process_request:output_format: %s", output_format)
+        # logger.info("syncroth:process_request:in_stock_date: %s", in_stock_date)
+        # logger.info("syncroth:process_request:================")
 
         # 1. Primary Lookups (Manual Textarea List -> WhatNot -> Location -> Date-Only)
         if url_ipn_list:
@@ -302,6 +308,7 @@ class Syncroth(View):
                                 logger.warning(
                                     f"Pack component part not found: {target_ipn}"
                                 )
+
                                 continue
 
                         if pack_components:
@@ -338,6 +345,7 @@ class Syncroth(View):
                     export_items.append(part)
                 except Part.DoesNotExist:
                     logger.warning(f"SKU not found: {clean_entry}")
+
                     continue
 
             for item in export_items[:]:
@@ -354,14 +362,21 @@ class Syncroth(View):
 
         elif whatnot_only:
             field = "Listed on WhatNot"
+
             try:
                 template = ParameterTemplate.objects.get(name=field)
+                # logger.info("syncroth:process_request:whatnot_only:template %s", template)
+
                 listed_params = Parameter.objects.filter(
                     template=template, data__in=[True, "True", "true", "1"]
                 )
+                # logger.info("syncroth:process_request:whatnot_only:listed_params %s", listed_params)
+
                 export_items = list(
                     Part.objects.filter(parameters__in=listed_params).distinct()
                 )
+                # logger.info("syncroth:process_request:whatnot_only:export_items %s", export_items)
+
                 mode = "listed_export"
             except ParameterTemplate.DoesNotExist:
                 mode = "empty_listed"
@@ -399,10 +414,13 @@ class Syncroth(View):
                 matching_part_ids = set(date_params.values_list("model_id", flat=True))
 
                 filtered_items = []
+
                 for item in export_items:
                     part_pk = item.part.pk if isinstance(item, StockItem) else item.pk
+
                     if part_pk in matching_part_ids:
                         filtered_items.append(item)
+
                 export_items = filtered_items
             except Exception as e:
                 logger.error(f"Error filtering by In Stock Date: {e}")
@@ -425,10 +443,13 @@ class Syncroth(View):
 
         if output_format == "csv" and export_items:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
             response = HttpResponse(csv_text, content_type="text/csv")
+
             response["Content-Disposition"] = (
                 f'attachment; filename="{mode}_{timestamp}.csv"'
             )
+
             return response
 
         # Safe AJAX response
@@ -437,12 +458,14 @@ class Syncroth(View):
                 getattr(item.part if isinstance(item, StockItem) else item, "IPN", "")
                 for item in export_items
             ]
+
             return JsonResponse({"csv_text": csv_text, "items": item_ipns})
 
         ipn_items = [
             getattr(item.part if isinstance(item, StockItem) else item, "IPN", "")
             for item in export_items
         ]
+
         context = {
             "all_locations": all_locations,
             "locations": locations,
