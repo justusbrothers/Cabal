@@ -1,5 +1,3 @@
-<!-- /plugins/Cabal/cabal/templates/vanguard/vanguard.html -->
-
 {% extends "base.html" %}
 {% load static %}
 
@@ -39,18 +37,57 @@
                 
                 <hr class="border-secondary opacity-25 my-4">
 
-                <!-- IPN List -->
+                <!-- IPN List & Filter/Sort Toolbar -->
                 <div class="mb-4">
-                    <label for="ipn_list" class="form-label fw-bold">IPN List / Single SKUs</label>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label for="ipn_list" class="form-label fw-bold mb-0">IPN List / Single SKUs</label>
+                        <div class="d-flex gap-2">
+                            <button type="button" id="btn-sort-ipn" class="btn btn-outline-secondary btn-sm" title="Sort lines alphabetically (A-Z)">
+                                <i class="bi bi-sort-alpha-down"></i> Sort A-Z
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Filter & Date Toolbar -->
+                    <div class="row g-2 mb-2">
+                        <!-- Text Filter -->
+                        <div class="col-md-6">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-body-tertiary text-muted border-secondary"><i class="bi bi-filter"></i> Filter</span>
+                                <input type="text" id="ipn-filter-input" class="form-control border-secondary" placeholder="Type to filter visible IPN rows...">
+                                <button type="button" id="btn-clear-ipn-filter" class="btn btn-outline-secondary">Reset</button>
+                            </div>
+                        </div>
+
+                        <!-- Added Since Calendar Filter -->
+                        <div class="col-md-6">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-body-tertiary text-muted border-secondary"><i class="bi bi-calendar-event"></i> Added Since</span>
+                                <input type="date" id="ipn-date-filter" class="form-control border-secondary" title="Filter out items added before this date">
+                                <button type="button" id="btn-clear-date-filter" class="btn btn-outline-secondary">Clear</button>
+                            </div>
+                        </div>
+                    </div>
 
                     <textarea id="ipn_list" name="ipn_list" class="form-control font-monospace" rows="4" placeholder="Enter IPNs or SKUs, separated by commas or newlines...">{{ ipn_list }}</textarea>
-                    <div class="form-text text-muted">List individual item IPNs to inspect for incentive ratio variants and single pulls.</div>
+
+                    <div class="d-flex justify-content-between align-items-center mt-2">
+                        <div class="form-text text-muted my-0">List individual item IPNs to inspect for incentive ratio variants and single pulls.</div>
+                        <div>
+                            <button type="button" id="btn-clear-packs" class="btn btn-outline-secondary btn-sm mr-3">
+                                <i class="bi bi-box-seam"></i> Clear Recommended Packs
+                            </button>
+                            <button type="button" id="btn-lookup-packs" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-box-seam"></i> Lookup Recommended Packs
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Recommended Packs Section -->
                 <div id="recommendations-container" class="card border-primary mb-4 bg-body-tertiary" style="{% if not recommended_packs %}display: none;{% endif %}">
                     <div class="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center">
-                        <h6 class="mb-0">📦 Recommended Packs Detected</h6>
+                        <h6 class="mb-0">📦 Recommended Packs</h6>
                     </div>
                     <div class="card-body">
                         <div id="recommendations-list" class="list-group list-group-flush mb-3 rounded shadow-sm border border-secondary">
@@ -109,7 +146,6 @@
                 <!-- Custom Pack Setup -->
                 <div class="mb-4">
                     <label for="packs" class="form-label fw-bold">Manual Pack Definition / Custom List</label>
-
                     <textarea id="packs" name="packs" class="form-control font-monospace" rows="3" placeholder="Enter Pack SKUs or definitions...">{{ packs }}</textarea>
                     <div class="form-text text-muted">List multi-issue pack SKUs to auto-expand cover breakdowns and assembly checklists.</div>
                 </div>
@@ -117,17 +153,14 @@
                 <!-- Sub Box Pulls -->
                 <div class="mb-4">
                     <label for="sub_box_pulls" class="form-label fw-bold">Sub Box Pulls</label>
-
                     <textarea id="sub_box_pulls" name="sub_box_pulls" class="form-control font-monospace" rows="3" placeholder="Enter customer sub box pull requests...">{{ sub_box_pulls }}</textarea>
                 </div>
 
                 <!-- Actions -->
                 <div class="d-flex flex-wrap gap-2 pt-3 border-top border-secondary">
                     <button type="submit" name="action" value="generate_pdf" class="btn btn-primary px-4">Generate PDF Strategy Report</button>
-
                     <button type="submit" name="action" value="save_session" class="btn btn-secondary px-4">Save Parameters</button>
-
-                    <button type="submit" name="action" value="clear_all" class="btn btn-outline-danger ms-md-auto px-4" onclick="return confirm('Are you sure you want to clear all input fields?');">
+                    <button type="submit" name="action" value="clear_all" class="btn btn-outline-danger ms-md-auto px-4" id="vanguard-clear-all">
                         Clear All
                     </button>
                 </div>
@@ -138,5 +171,8 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{% static 'plugins/cabal/cabal/js/vanguard/_utils.js' %}"></script>
 <script src="{% static 'plugins/cabal/cabal/js/vanguard/script.js' %}"></script>
+<script src="{% static 'plugins/cabal/cabal/js/vanguard/textarea.js' %}"></script>
+<script src="{% static 'plugins/cabal/cabal/js/vanguard/recommendations.js' %}"></script>
 {% endblock %}

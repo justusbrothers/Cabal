@@ -1,4 +1,4 @@
-# cabal/apps/vanguard/vanguard.py
+# /plugins/Cabal/cabal/apps/vanguard/vanguard.py
 
 import io
 import re
@@ -37,40 +37,16 @@ from cabal.utils import clean_text
 class LookupPacksApiView(APIView):
     """API endpoint to look up IPNs by date and recommend available cover packs."""
 
-    permission_classes = [
-        IsAuthenticated
-    ]  # Ensures 401 response instead of 302 redirect
+    permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
-        # request.data works for BOTH JSON bodies and standard POST form data
-        lookup_date = request.data.get("lookup_date", "")
         ipn_raw = request.data.get("ipn_list", "")
-
-        if not lookup_date:
-            return Response(
-                {"status": "error", "message": "Please select a date first."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # 1. Fetch date IPNs
-        date_ipns = VanguardParser.get_ipns_by_param_date(lookup_date)
-        if not date_ipns:
-            return Response(
-                {
-                    "status": "warning",
-                    "message": f"No IPNs found matching '{lookup_date}'.",
-                },
-                status=status.HTTP_200_OK,
-            )
-
-        # 2. Combine IPNs
         existing_lines = VanguardParser.parse_textarea_input(ipn_raw)
-        combined_ipns = list(dict.fromkeys(existing_lines + date_ipns))
-        updated_ipn_text = "\n".join(combined_ipns)
+        recommended_ipn_list = list(dict.fromkeys(existing_lines))
+        updated_ipn_text = "\n".join(recommended_ipn_list)
 
-        # 3. Generate pack recommendations strictly from input IPNs
         recommended_packs = VanguardParser.recommend_packs_from_ipns(
-            ipn_list=combined_ipns, min_stock=1
+            ipn_list=recommended_ipn_list, min_stock=1
         )
 
         return Response(
@@ -79,6 +55,44 @@ class LookupPacksApiView(APIView):
                 "message": f"Found {len(recommended_packs)} pack recommendation(s).",
                 "ipn_list": updated_ipn_text,
                 "recommended_packs": recommended_packs,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class LookupSinceApiView(APIView):
+    """API endpoint to look up IPNs by date and result from 'added since' value."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        lookup_date = request.data.get("lookup_date", "")
+        added_since = request.data.get("added_since", "")
+
+        if not lookup_date:
+            return Response(
+                {"status": "error", "message": "Please select a date first."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Retrieve IPNs by the selected lookup date param
+        date_ipns = VanguardParser.get_ipns_by_param_date(lookup_date)
+
+        # Filter by added_since date if provided
+        filtered_ipns = []
+        if added_since:
+            filtered_ipns = VanguardParser.filter_ipns_by_creation_date(
+                date_ipns, added_since
+            )
+        else:
+            filtered_ipns = date_ipns
+
+        return Response(
+            {
+                "status": "success",
+                "lookup_date": lookup_date,
+                "added_since": added_since,
+                "ipns": filtered_ipns,
             },
             status=status.HTTP_200_OK,
         )

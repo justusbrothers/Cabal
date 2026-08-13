@@ -16,5 +16,6 @@ from .syncroth.syncroth import Syncroth as Syncroth
 from .syncroth.pdf import WeeklyReportPDFView as WeeklyReportPDFView
 from .vanguard.vanguard import (
     LookupPacksApiView as LookupPacksApiView,
+    LookupSinceApiView as LookupSinceApiView,
     Vanguard as Vanguard,
 )

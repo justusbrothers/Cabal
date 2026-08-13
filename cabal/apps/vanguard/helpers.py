@@ -1,10 +1,13 @@
-# cabal/apps/vanguard/helpers.py
+# /plugins/Cabal/cabal/apps/vanguard/helpers.py
 
 import re
+from datetime import datetime, date
 
 from django.db.models import Sum
 
-# Import InvenTree models matching Syncroth's strategy
+from part.models import Part
+
+
 try:
     from common.models import Parameter, ParameterTemplate
 except ImportError:
@@ -299,21 +302,27 @@ class VanguardParser:
 
         # Regex matches base issue prefix (e.g. 'CB_MAR_BISHOP_V2-002') and optional variant ('C')
         variant_pattern = re.compile(r"^(.*-\d+)([A-Z])?$", re.IGNORECASE)
-        base_prefixes = set()
+
+        # Track appearance order of base prefixes
+        base_prefix_order = []
+        seen_prefixes = set()
 
         for token in target_tokens:
             match = variant_pattern.match(token)
             if match:
-                base_prefixes.add(match.group(1).upper())
+                prefix = match.group(1).upper()
+                if prefix not in seen_prefixes:
+                    seen_prefixes.add(prefix)
+                    base_prefix_order.append(prefix)
 
-        if not base_prefixes:
+        if not base_prefix_order:
             return []
 
         # 2. Query all database parts under matching base prefixes
         from django.db.models import Q
 
         prefix_query = Q()
-        for prefix in base_prefixes:
+        for prefix in base_prefix_order:
             prefix_query |= Q(IPN__istartswith=prefix)
 
         query = Part.objects.filter(prefix_query)
@@ -330,7 +339,7 @@ class VanguardParser:
                 continue
 
             base_ipn = match.group(1).upper()
-            if base_ipn not in base_prefixes:
+            if base_ipn not in seen_prefixes:
                 continue
 
             variant_letter = (match.group(2) or "A").upper()
@@ -399,4 +408,62 @@ class VanguardParser:
                 "max_buildable_packs": max_packs_possible,
             })
 
+        # 3. Sort recommendations to match the original input order of base prefixes
+        order_map = {prefix: idx for idx, prefix in enumerate(base_prefix_order)}
+        recommendations.sort(key=lambda x: order_map.get(x["base_ipn"], 999999))
+
         return recommendations
+
+    @staticmethod
+    def get_inventree_part_obj(ipn):
+        """Retrieve the InvenTree Part object by its IPN (SKU/part number) or pk."""
+        if not ipn:
+            return None
+        try:
+            return Part.objects.filter(IPN=ipn).first()
+        except Exception:
+            try:
+                return Part.objects.filter(pk=ipn).first()
+            except Exception:
+                return None
+
+    @staticmethod
+    def filter_ipns_by_creation_date(ipn_list, added_since):
+        """Filters a list of IPNs based on whether their associated part/item creation date matches or exceeds the added_since date."""
+        if not added_since:
+            return ipn_list
+
+        try:
+            min_date = datetime.strptime(added_since, "%Y-%m-%d").date()
+        except Exception:
+            return ipn_list
+
+        filtered = []
+
+        for ipn in ipn_list:
+            part = VanguardParser.get_inventree_part_obj(ipn)
+            creation_dt = getattr(part, "creation_date", None) or getattr(
+                part, "updated", None
+            )
+
+            if creation_dt:
+                # Handle both datetime and date objects safely
+                if isinstance(creation_dt, datetime):
+                    item_date = creation_dt.date()
+                elif isinstance(creation_dt, date):
+                    item_date = creation_dt
+                else:
+                    item_date = None
+
+                if item_date:
+                    try:
+                        if item_date >= min_date:
+                            filtered.append(ipn)
+                    except Exception:
+                        filtered.append(ipn)
+                else:
+                    filtered.append(ipn)
+            else:
+                filtered.append(ipn)
+
+        return filtered

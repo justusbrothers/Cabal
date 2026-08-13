@@ -19,7 +19,7 @@ function updateRemainingServerRender(inputElem, remainingElemId) {
     }
 }
 
-// JavaScript Dynamic Render Section
+/* JavaScript Dynamic Render Section
 function renderPackRecommendations(packs) {
     const container = document.getElementById('recommendations-container');
     const listDiv = document.getElementById('recommendations-list');
@@ -142,6 +142,7 @@ document.getElementById('btn-lookup-date').addEventListener('click', async funct
         console.error('Error fetching recommendations:', error);
     }
 });
+*/
 
 document.getElementById('btn-alert-selected').addEventListener('click', function () {
     const selectedCheckboxes = document.querySelectorAll('.pack-checkbox:checked');
@@ -174,6 +175,14 @@ document.getElementById('btn-alert-selected').addEventListener('click', function
 
 // Initial calculation for server-rendered items on page load
 document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('vanguard-clear-all').addEventListener('click', function () {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(STORAGE_IPN_CONTENT_KEY);
+        localStorage.removeItem(STORAGE_PACKS_CONTENT_KEY);
+
+        return confirm('Are you sure you want to clear all input fields?');
+    });
+
     document.querySelectorAll('.qty-input').forEach(input => {
         const id = input.id.replace('pack_qty_', 'remaining_');
         updateRemainingServerRender(input, id);

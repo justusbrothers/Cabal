@@ -8,6 +8,7 @@ from .apps import (
     Cerebro,
     Syncroth,
     LookupPacksApiView,
+    LookupSinceApiView,
     Nexus,
     Spectacle,
     Vanguard,
@@ -38,6 +39,11 @@ urlpatterns = [
         "vanguard/api/lookup-packs/",
         LookupPacksApiView.as_view(),
         name="lookup_packs_api",
+    ),
+    path(
+        "vanguard/api/lookup-since/",
+        LookupSinceApiView.as_view(),
+        name="lookup_since_api",
     ),
     path(
         "syncroth/weekly-report-pdf/",
