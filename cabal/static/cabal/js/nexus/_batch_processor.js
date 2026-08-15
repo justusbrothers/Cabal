@@ -28,6 +28,18 @@ class InvenTreeBatchProcessor {
             this.dryRun = dryRunToggle.checked;
         }
 
+        const progressContainer = document.getElementById("batchProgressContainer");
+        const progressBar = document.getElementById("batchProgressBar");
+
+        // Always show the progress bar now
+        if (progressContainer) {
+            progressContainer.style.display = "block";
+            if (progressBar) {
+                progressBar.style.width = "0%";
+                progressBar.textContent = "0%";
+            }
+        }
+
         const loop_length = rows.length;
         const modeLabel = this.dryRun ? "🧪 [DRY RUN MODE]" : "⚡ [LIVE WRITE MODE]";
 
@@ -36,7 +48,6 @@ class InvenTreeBatchProcessor {
         for (let index = 0; index < loop_length; index++) { 
             if (this.shouldStop) {
                 this.logToUI("\n⚠️ Batch processing stopped by user.");
-
                 break;
             }
 
@@ -53,16 +64,34 @@ class InvenTreeBatchProcessor {
 
                 const lookupResult = await this.performLookup(upc, title);
 
-                // If there was a failure
                 if (!lookupResult || !lookupResult.success) {
                     const failReason = lookupResult?.error || lookupResult?.message || "Lookup failed: No matching comic found on Metron.";
-                    this.logToUI(`❌ [DEBUG] Metron lookup returned failure: ${JSON.stringify(lookupResult, null, 2)}`);
+                    if (this.dryRun) { this.logToUI(`❌ [DEBUG] Metron lookup returned failure: ${JSON.stringify(lookupResult, null, 2)}`); }
                     this.recordFailure(rowId, row, failReason);
                     await this.sleep(this.delayMs);
+                    this.updateProgress(index + 1, loop_length, progressBar);
                     continue;
                 }
 
                 if (this.dryRun) { this.logToUI(`✅ [DEBUG] Metron lookup successful. Raw comic data:\n${JSON.stringify(lookupResult.comic_data, null, 2)}`); }
+
+                const resolvedComic = lookupResult.comic_data || {};
+                const resolvedTitle = String(resolvedComic.title || title || "").trim();
+
+                if (resolvedTitle.length > 100) {
+                    this.logToUI(`⚠️ [WARNING] Resolved title length (${resolvedTitle.length} chars) exceeds 100 character limit. Pausing batch for user review.`);
+                    
+                    const updatedTitle = await this.promptForLongTitle(rowId, resolvedTitle);
+                    
+                    if (updatedTitle === null) {
+                        this.logToUI(`⚠️ [WARNING] User skipped or cancelled title prompt for row ${rowId}. Aborting batch.`);
+                        this.shouldStop = true;
+                        break;
+                    }
+
+                    resolvedComic.title = updatedTitle;
+                    if (this.dryRun) { this.logToUI(`✏️ [DEBUG] Continuing batch with updated title: "${updatedTitle}"`); }
+                }
 
                 const payload = this.buildInvenTreePayload(row, lookupResult);
                 if (this.dryRun) { this.logToUI(`📦 [DEBUG] Constructed InvenTree payload:\n${JSON.stringify(payload, null, 2)}`); }
@@ -71,26 +100,134 @@ class InvenTreeBatchProcessor {
 
                 if (result && result.success) {
                     if (this.dryRun) { this.logToUI(`🎉 [DEBUG] InvenTree write successful response:\n${JSON.stringify(result, null, 2)}`); }
-
                     this.recordSuccess(rowId, title, upc, payload, result.data?.part?.pk);
                 } else {
                     if (this.dryRun) { this.logToUI(`❌ [DEBUG] InvenTree write failed response:\n${JSON.stringify(result, null, 2)}`); }
-
                     this.recordFailure(rowId, row, `InvenTree API Error: ${result?.message || 'Failed to create part'}`);
                 }
 
             } catch (err) {
                 if (this.dryRun) { this.logToUI(`💥 [DEBUG] Unexpected Exception caught at Row ${rowId}:\nStack: ${err.stack || err.message}`); }
-
                 this.recordFailure(rowId, row, `Unexpected Script Error: ${err.message}`);
             }
 
             await this.sleep(this.delayMs);
+            this.updateProgress(index + 1, loop_length, progressBar);
         }
 
         this.isProcessing = false;
         this.printSummary();
         this.exportBatchReportToExcel();
+        await this.finalizeProgress(progressBar, progressContainer);
+    }
+
+    promptForLongTitle(rowId, currentTitle) {
+        return new Promise((resolve) => {
+            const existingOverlay = document.getElementById("nexusTitlePromptOverlay");
+            if (existingOverlay) existingOverlay.remove();
+
+            const overlay = document.createElement("div");
+            overlay.id = "nexusTitlePromptOverlay";
+            overlay.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+                background: rgba(0, 0, 0, 0.6); z-index: 99999;
+                display: flex; align-items: center; justify-content: center;
+                font-family: inherit;
+            `;
+
+            const dialog = document.createElement("div");
+            dialog.style.cssText = `
+                background: #1e1e1e; color: #f1f1f1; padding: 24px; border-radius: 8px;
+                width: 500px; max-width: 90%; box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+                border: 1px solid #333;
+            `;
+
+            dialog.innerHTML = `
+                <h3 style="margin-top: 0; color: #ffc107;">⚠️ Long Title Detected (Row ${rowId})</h3>
+                <p style="font-size: 14px; color: #bbb; margin-bottom: 12px;">
+                    The resolved comic issue title is <strong>${currentTitle.length} characters</strong> long (exceeds the 100-character limit). Please review and edit the title below before continuing:
+                </p>
+                <div style="margin-bottom: 16px;">
+                    <input type="text" id="nexusLongTitleInput" value="${currentTitle.replace(/"/g, '&quot;')}" placeholder="${currentTitle.replace(/"/g, '&quot;')}" style="
+                        width: 100%; padding: 10px; background: #2a2a2a; border: 1px solid #444;
+                        color: #fff; border-radius: 4px; font-size: 14px; box-sizing: border-box;
+                    ">
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button id="nexusCancelBatchBtn" type="button" style="
+                        padding: 8px 16px; background: #444; color: #fff; border: none;
+                        border-radius: 4px; cursor: pointer; font-weight: bold;
+                    ">Stop Batch</button>
+                    <button id="nexusSubmitTitleBtn" type="button" style="
+                        padding: 8px 16px; background: #007bff; color: #fff; border: none;
+                        border-radius: 4px; cursor: pointer; font-weight: bold;
+                    ">Confirm & Continue</button>
+                </div>
+            `;
+
+            overlay.appendChild(dialog);
+            document.body.appendChild(overlay);
+
+            const inputField = document.getElementById("nexusLongTitleInput");
+            inputField.focus();
+            inputField.select();
+
+            const cleanup = (resultValue) => {
+                overlay.remove();
+                resolve(resultValue);
+            };
+
+            document.getElementById("nexusSubmitTitleBtn").addEventListener("click", () => {
+                cleanup(inputField.value.trim());
+            });
+
+            document.getElementById("nexusCancelBatchBtn").addEventListener("click", () => {
+                cleanup(null);
+            });
+
+            inputField.addEventListener("keydown", (e) => {
+                if (e.key === "Enter") {
+                    cleanup(inputField.value.trim());
+                } else if (e.key === "Escape") {
+                    cleanup(null);
+                }
+            });
+        });
+    }
+
+    updateProgress(current, total, progressBar) {
+        if (progressBar) {
+            const percentage = Math.round((current / total) * 100);
+            progressBar.style.width = `${percentage}%`;
+            progressBar.textContent = `${percentage}% (${current}/${total})`;
+            
+            // Ensure standard styling while progressing
+            progressBar.classList.remove('bg-success');
+            progressBar.classList.add('bg-primary');
+        }
+    }
+
+    async finalizeProgress(progressBar, progressContainer) {
+        if (progressBar) {
+            progressBar.style.width = "100%";
+            progressBar.textContent = "100% (Complete)";
+            progressBar.classList.remove('bg-primary');
+            progressBar.classList.add('bg-success'); // Solid green
+        }
+
+        // Wait for 10 seconds before resetting and hiding
+        await this.sleep(10000);
+
+        if (progressBar) {
+            progressBar.style.width = "0%";
+            progressBar.textContent = "0%";
+            progressBar.classList.remove('bg-success');
+            progressBar.classList.add('bg-primary');
+        }
+
+        if (progressContainer) {
+            progressContainer.style.display = "none";
+        }
     }
 
     stop() {
@@ -205,8 +342,6 @@ class InvenTreeBatchProcessor {
                 virtual: false,
             };
 
-            if (this.dryRun) { this.logToUI(`📡 [DEBUG] POSTing to /api/part/ with body:\n${JSON.stringify(partRequestBody, null, 2)}`); }
-
             const partResponse = await fetch('/api/part/', {
                 method: 'POST',
                 headers: {
@@ -226,13 +361,10 @@ class InvenTreeBatchProcessor {
 
             const createdPart = await partResponse.json();
             const partId = createdPart.pk || createdPart.id;
-            this.logToUI(`✅ [DEBUG] Successfully created Part PK #${partId}`);
 
             if (payload.part.image_url) {
                 try {
-                    if (this.dryRun) { this.logToUI(`📡 [DEBUG] Requesting server-side image attach for URL: ${payload.part.image_url}`); }
-                    
-                    const imageProxyRes = await fetch(`/plugin/cabal/attach-image/`, {
+                    await fetch(`/plugin/cabal/attach-image/`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -243,15 +375,8 @@ class InvenTreeBatchProcessor {
                             image_url: payload.part.image_url
                         })
                     });
-
-                    if (imageProxyRes.ok) {
-                        if (this.dryRun) { this.logToUI(`✅ [DEBUG] Successfully attached image via server-side handler for Part PK #${partId}`); }
-                    } else {
-                        const proxyErr = await imageProxyRes.text();
-                        if (this.dryRun) { this.logToUI(`⚠️ [DEBUG] Server-side image attach warning (Status ${imageProxyRes.status}): ${proxyErr}`); }
-                    }
                 } catch (imgErr) {
-                    this.logToUI(`⚠️ [DEBUG] Exception occurred during server-side image attach: ${imgErr.message}`);
+                    // Suppress network-level image attachment warnings on live runs
                 }
             }
 
@@ -262,9 +387,8 @@ class InvenTreeBatchProcessor {
                     price: payload.pricing.retail_price,
                     price_currency: 'USD'
                 };
-                if (this.dryRun) { this.logToUI(`📡 [DEBUG] POSTing to /api/part/sale-price/ with body:\n${JSON.stringify(priceBody, null, 2)}`); }
                 
-                const priceRes = await fetch('/api/part/sale-price/', {
+                await fetch('/api/part/sale-price/', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -272,11 +396,6 @@ class InvenTreeBatchProcessor {
                     },
                     body: JSON.stringify(priceBody)
                 });
-                
-                if (!priceRes.ok) {
-                    const priceErr = await priceRes.text();
-                    this.logToUI(`⚠️ [DEBUG] Warning: Sale price API returned status ${priceRes.status}: ${priceErr}`);
-                }
             }
 
             const parametersToCreate = [
@@ -288,7 +407,6 @@ class InvenTreeBatchProcessor {
             ];
 
             const validParameters = parametersToCreate.filter(param => param.value !== "" && param.value !== null);
-            if (this.dryRun) { this.logToUI(`📡 [DEBUG] Writing ${validParameters.length} Part Parameters for Part PK #${partId}:\n${JSON.stringify(validParameters, null, 2)}`); }
 
             const parameterPromises = validParameters.map(param => {
                 const paramBody = {
@@ -305,14 +423,6 @@ class InvenTreeBatchProcessor {
                         'X-CSRFToken': this.getCsrfToken()
                     },
                     body: JSON.stringify(paramBody)
-                }).then(async res => {
-                    if (!res.ok) {
-                        const errText = await res.text();
-
-                        this.logToUI(`⚠️ [DEBUG] Parameter template ${param.template_name} (${param.name}) write failed: ${errText}`);
-                    }
-
-                    return res;
                 });
             });
 
@@ -326,10 +436,8 @@ class InvenTreeBatchProcessor {
                     location: location_id,
                     notes: `Ingested via Nexus batch. Condition: ${payload.metadata.condition || "NM"}`
                 };
-
-                if (this.dryRun) { this.logToUI(`📡 [DEBUG] POSTing to /api/stock/ with body:\n${JSON.stringify(stockBody, null, 2)}`); }
                 
-                const stockRes = await fetch('/api/stock/', {
+                await fetch('/api/stock/', {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
@@ -337,16 +445,6 @@ class InvenTreeBatchProcessor {
                     },
                     body: JSON.stringify(stockBody)
                 });
-
-                if (!stockRes.ok) {
-                    const stockErr = await stockRes.text();
-
-                    if (this.dryRun) { this.logToUI(`⚠️ [DEBUG] Stock creation warning (Status ${stockRes.status}): ${stockErr}`); }
-                } else {
-                    if (this.dryRun) { this.logToUI(`✅ [DEBUG] Successfully allocated stock quantity ${payload.stock.quantity} to location ID ${location_id}`); }
-                }
-            } else {
-                this.logToUI(`ℹ️ [DEBUG] No stock location mapped for publisher code "${payload.metadata.publisher_code}". Skipping automatic stock item creation.`);
             }
 
             return {
@@ -384,10 +482,10 @@ class InvenTreeBatchProcessor {
     }
 
     logToUI(message) {
+        // Always stream to the dev console
         console.log(message);
 
         const logTextArea = document.getElementById("sessionIpnLog");
-
         if (logTextArea) {
             logTextArea.value += message + "\n";
             logTextArea.scrollTop = logTextArea.scrollHeight;

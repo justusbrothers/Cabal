@@ -162,8 +162,13 @@ function displayPage(page) {
         const baseUPC = upc.length === 17 ? upc.substring(0, 15) : null;
         const associatedVariants = baseUPC ? (window.variantGroups[baseUPC] || []) : [];
 
-        let rowHtml = `<tr class="parent-comic-row align-middle" id="row-global-${originalGlobalIndex}">`;
-        
+        let rowHtml = `
+            <tr class="parent-comic-row align-middle" id="row-global-${originalGlobalIndex}">
+                <td class="text-center">
+                    <input type="checkbox" class="form-check-input parent-row-chk" data-global-index="${originalGlobalIndex}">
+                </td>
+        `;
+
         if (Array.isArray(targetRow)) {
             targetRow.forEach(cell => {
                 rowHtml += `<td>${cell !== null && cell !== "" ? cell : '<span class="text-danger italic small">[empty]</span>'}</td>`;
@@ -180,14 +185,15 @@ function displayPage(page) {
                     <button type="button" class="btn btn-sm btn-outline-info scan-upc-btn" data-global-index="${originalGlobalIndex}">🔍 Scan</button>
                     ${associatedVariants.length > 0 ? `<button type="button" class="btn btn-sm btn-dark text-warning font-monospace toggle-drawer-btn" data-base-upc="${baseUPC}">▼ ${associatedVariants.length}</button>` : ''}
                 </div>
-            </td></tr>`;
+            </td>
+        </tr>`;
 
         tbody.insertAdjacentHTML('beforeend', rowHtml);
 
         if (associatedVariants.length > 0) {
             let drawerHtml = `
                 <tr id="drawer-${baseUPC}" class="bg-dark bg-gradient d-none">
-                    <td colspan="${targetRow.length + 1}" class="p-3 border-start border-warning border-3">
+                    <td colspan="${targetRow.length + 2}" class="p-3 border-start border-warning border-3">
                         <div class="fw-bold mb-2 text-warning font-monospace small">📁 Associated Secondary Barcode Variants Detected:</div>
                         <div class="table-responsive">
                             <table class="table table-sm table-bordered border-secondary text-white mb-0 small m-0">
@@ -228,10 +234,14 @@ function displayPage(page) {
     }
 
     attachScanButtonEvents();
-
     attachDrawerEvents();
-
     updateControls(totalPages);
+
+    // Re-sync master header checkbox state when page changes
+    const selectAllCheckbox = document.getElementById('selectAllRows');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.checked = false;
+    }
 }
 
 function attachDrawerEvents() {
@@ -266,7 +276,7 @@ function updateControls(totalPages) {
             controls.insertAdjacentHTML('beforeend', `<li class="page-item ${currentPage === p ? 'active' : ''}"><a class="page-link" href="#" data-page="${p}">${p}</a></li>`);
         }
     }
-    controls.insertAdjacentHTML('beforeend', `<li class="page-item ${currentPage === totalPages ? 'disabled' : ''}"><a class="page-link" href="#" data-page="${currentPage + 1}">Next` + `</a></li>`);
+    controls.insertAdjacentHTML('beforeend', `<li class="page-item ${currentPage === totalPages ? 'disabled' : ''}"><a class="page-link" href="#" data-page="${currentPage + 1}">Next</a></li>`);
 
     controls.querySelectorAll('a[data-page]').forEach(link => {
         link.addEventListener('click', function(e) {
@@ -284,13 +294,35 @@ function attachScanButtonEvents() {
     });
 }
 
+function getSelectedRowIndices() {
+    const selectedIndices = [];
+    document.querySelectorAll('.parent-row-chk:checked').forEach(chk => {
+        const idx = parseInt(chk.getAttribute('data-global-index'), 10);
+        if (!isNaN(idx)) {
+            selectedIndices.push(idx);
+        }
+    });
+    return selectedIndices;
+}
+
 document.getElementById('uiTableFilterToken')?.addEventListener('input', filterAndRenderMatrix);
 
 // Initial structural scan and hydration
 document.addEventListener('DOMContentLoaded', () => {
     hydratePreviewRowsFromDOM();
-
     syncColumnIndicesFromDOM();
+
+    // Hook up master select-all toggle header checkbox
+    const selectAllCheckbox = document.getElementById('selectAllRows');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            const isChecked = this.checked;
+            document.querySelectorAll('.parent-row-chk').forEach(chk => {
+                chk.checked = isChecked;
+            });
+            console.log("🐛 [Cabal Debug] Master select-all toggled:", isChecked);
+        });
+    }
 
     if (window.previewRows.length > 0) {
         filterAndRenderMatrix();
@@ -301,11 +333,9 @@ document.addEventListener('DOMContentLoaded', () => {
     window.runAutomatedBatch = async function() {
         if (batchProcessor.isProcessing) {
             console.warn("🐛 [Cabal Debug] Batch process is already running.");
-
             return;
         }
 
-        // Ensure window.previewRows and window.fullRows are hydrated before running
         if (typeof hydratePreviewRowsFromDOM === 'function') {
             hydratePreviewRowsFromDOM();
         }
@@ -317,13 +347,24 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Try to grab headers if available, otherwise fallback to index mapping
+        // GUARD: Ensure at least one row is checked before starting the batch
+        const selectedIndices = getSelectedRowIndices();
+        if (selectedIndices.length === 0) {
+            const msg = "⚠️ [Cabal Warning] Batch run aborted: No rows are currently selected. Please check at least one row checkbox to begin processing.";
+            batchProcessor.logToUI(msg);
+            alert("Please select at least one row using the checkboxes before starting the batch process.");
+            return;
+        }
+
+        // Filter source dataset to only include checked rows based on global indices
+        const filteredSourceDataset = sourceDataset.filter((_, idx) => selectedIndices.includes(idx));
+        console.log(`🐛 [Cabal Debug] Starting batch with ${filteredSourceDataset.length} checked rows out of ${sourceDataset.length} total.`);
+
         const fullHeadersScript = document.getElementById('full-headers-matrix');
         const fullHeaders = fullHeadersScript ? JSON.parse(fullHeadersScript.textContent) : [];
         console.log("🐛 [Cabal Debug] Full Headers Matrix for Batch Processing:", fullHeaders);
 
-        // Map array-based rows into structured objects including discounted price
-        const rowsToProcess = sourceDataset.map((row, idx) => {
+        const rowsToProcess = filteredSourceDataset.map((row, idx) => {
             if (Array.isArray(row)) {
                 let rowObj = {};
 
