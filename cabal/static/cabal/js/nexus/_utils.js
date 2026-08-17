@@ -1,5 +1,13 @@
 // /plugins/Cabal/cabal/static/cabal/js/nexus/_utils.js
 
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function getCsrfToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+}
+
 function showTemporaryCheckmark(buttonElem) {
     const originalText = buttonElem.innerHTML;
     buttonElem.innerHTML = "✓";

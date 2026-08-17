@@ -62,6 +62,8 @@ function handleScanClick(e) {
     // Safely extract the token dynamically from the DOM wrapper environment
     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || "";
 
+    // window.NexusInventreeHelpers.performLookup(extractedBarcode);
+
     fetch('/plugin/cabal/spectacle/', {
         method: 'POST',
         headers: { 

@@ -13,10 +13,6 @@ class InvenTreeBatchProcessor {
         this.failedEntries = [];
     }
 
-    sleep(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
-    }
-
     async startBatch(rows) {
         this.isProcessing = true;
         this.shouldStop = false;
@@ -62,13 +58,13 @@ class InvenTreeBatchProcessor {
             try {
                 if (this.dryRun) { this.logToUI(`🔍 [DEBUG] Sending Metron lookup query -> Barcode: "${upc}", Title: "${title}"`); }
 
-                const lookupResult = await this.performLookup(upc, title);
+                const lookupResult = await window.NexusInventreeHelpers.performLookup(upc, title);
 
                 if (!lookupResult || !lookupResult.success) {
                     const failReason = lookupResult?.error || lookupResult?.message || "Lookup failed: No matching comic found on Metron.";
                     if (this.dryRun) { this.logToUI(`❌ [DEBUG] Metron lookup returned failure: ${JSON.stringify(lookupResult, null, 2)}`); }
                     this.recordFailure(rowId, row, failReason);
-                    await this.sleep(this.delayMs);
+                    await sleep(this.delayMs);
                     this.updateProgress(index + 1, loop_length, progressBar);
                     continue;
                 }
@@ -93,10 +89,45 @@ class InvenTreeBatchProcessor {
                     if (this.dryRun) { this.logToUI(`✏️ [DEBUG] Continuing batch with updated title: "${updatedTitle}"`); }
                 }
 
-                const payload = this.buildInvenTreePayload(row, lookupResult);
+                const payload = window.NexusInventreeHelpers.buildInvenTreePayload(row, lookupResult);
+                
+                // --- DISCOUNTED PRICE & QUANTITY EVALUATION & ADJUSTMENT ---
+                if (payload && payload.pricing && payload.stock) {
+                    const rawDiscountedPrice = payload.pricing.discounted_price;
+                    const discountedPriceNum = parseFloat(rawDiscountedPrice);
+                    const quantityNum = parseInt(payload.stock.quantity, 10);
+
+                    if (!isNaN(discountedPriceNum) && !isNaN(quantityNum) && discountedPriceNum === quantityNum) {
+                        this.logToUI(`⚠️ [WARNING] Discounted price matches quantity (${discountedPriceNum}) for row ${rowId}. Pausing batch for user review.`);
+
+                        const promptResult = await this.promptForPriceAdjustment(rowId, resolvedTitle, upc, discountedPriceNum, quantityNum);
+
+                        if (promptResult === null) {
+                            this.logToUI(`⚠️ [WARNING] User skipped or cancelled price/details adjustment prompt for row ${rowId}. Aborting batch.`);
+                            this.shouldStop = true;
+                            break;
+                        }
+
+                        // Apply updates to payload and local scope variables
+                        resolvedComic.title = promptResult.title;
+                        payload.part.name = promptResult.title;
+                        
+                        if (payload.metadata) {
+                            payload.metadata.title = promptResult.title;
+                        }
+
+                        payload.part.barcode = promptResult.upc;
+                        payload.pricing.discounted_price = parseFloat(promptResult.price).toFixed(2);
+
+                        if (this.dryRun) { 
+                            this.logToUI(`🧮 [DEBUG] Continuing batch with user-adjusted values -> Title: "${promptResult.title}", UPC: "${promptResult.upc}", Price: ${payload.pricing.discounted_price}`); 
+                        }
+                    }
+                }
+
                 if (this.dryRun) { this.logToUI(`📦 [DEBUG] Constructed InvenTree payload:\n${JSON.stringify(payload, null, 2)}`); }
 
-                const result = await this.createInvenTreePartAndStock(payload);
+                const result = await window.NexusInventreeHelpers.createInvenTreePartAndStock(payload, this.dryRun, this.logToUI);
 
                 if (result && result.success) {
                     if (this.dryRun) { this.logToUI(`🎉 [DEBUG] InvenTree write successful response:\n${JSON.stringify(result, null, 2)}`); }
@@ -111,7 +142,7 @@ class InvenTreeBatchProcessor {
                 this.recordFailure(rowId, row, `Unexpected Script Error: ${err.message}`);
             }
 
-            await this.sleep(this.delayMs);
+            await sleep(this.delayMs);
             this.updateProgress(index + 1, loop_length, progressBar);
         }
 
@@ -195,6 +226,101 @@ class InvenTreeBatchProcessor {
         });
     }
 
+    promptForPriceAdjustment(rowId, currentTitle, currentUpc, discountedPrice, quantity) {
+        return new Promise((resolve) => {
+            const existingOverlay = document.getElementById("nexusPricePromptOverlay");
+
+            if (existingOverlay) existingOverlay.remove();
+
+            const overlay = document.createElement("div");
+            overlay.id = "nexusPricePromptOverlay";
+            overlay.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+                background: rgba(0, 0, 0, 0.6); z-index: 99999;
+                display: flex; align-items: center; justify-content: center;
+                font-family: inherit;
+            `;
+
+            const dialog = document.createElement("div");
+            dialog.style.cssText = `
+                background: #1e1e1e; color: #f1f1f1; padding: 24px; border-radius: 8px;
+                width: 520px; max-width: 90%; box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+                border: 1px solid #333;
+            `;
+
+            const suggestedPrice = (discountedPrice / quantity).toFixed(2);
+
+            dialog.innerHTML = `
+                <h3 style="margin-top: 0; color: #ffc107;">🧮 Price/Quantity Match Detected (Row ${rowId})</h3>
+                <p style="font-size: 13px; color: #bbb; margin-bottom: 16px;">
+                    The discounted price matches the quantity (<strong>${discountedPrice}</strong>). Suggested price adjustment is <strong>$${suggestedPrice}</strong>. You may also review or edit the part name and UPC below:
+                </p>
+                <div style="margin-bottom: 12px;">
+                    <label style="display: block; font-size: 12px; color: #888; margin-bottom: 4px;">Part Name / Title</label>
+                    <input type="text" id="nexusPromptTitleInput" value="${currentTitle.replace(/"/g, '&quot;')}" style="
+                        width: 100%; padding: 10px; background: #2a2a2a; border: 1px solid #444;
+                        color: #fff; border-radius: 4px; font-size: 14px; box-sizing: border-box;
+                    ">
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <label style="display: block; font-size: 12px; color: #888; margin-bottom: 4px;">UPC / Barcode</label>
+                    <input type="text" id="nexusPromptUpcInput" value="${currentUpc.replace(/"/g, '&quot;')}" style="
+                        width: 100%; padding: 10px; background: #2a2a2a; border: 1px solid #444;
+                        color: #fff; border-radius: 4px; font-size: 14px; box-sizing: border-box;
+                    ">
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-size: 12px; color: #888; margin-bottom: 4px;">Adjusted Discounted Price ($)</label>
+                    <input type="text" id="nexusPromptPriceInput" value="${suggestedPrice}" style="
+                        width: 100%; padding: 10px; background: #2a2a2a; border: 1px solid #444;
+                        color: #fff; border-radius: 4px; font-size: 14px; box-sizing: border-box;
+                    ">
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button id="nexusCancelPriceBtn" type="button" style="
+                        padding: 8px 16px; background: #444; color: #fff; border: none;
+                        border-radius: 4px; cursor: pointer; font-weight: bold;
+                    ">Stop Batch</button>
+                    <button id="nexusSubmitPriceBtn" type="button" style="
+                        padding: 8px 16px; background: #007bff; color: #fff; border: none;
+                        border-radius: 4px; cursor: pointer; font-weight: bold;
+                    ">Confirm & Continue</button>
+                </div>
+            `;
+
+            overlay.appendChild(dialog);
+            document.body.appendChild(overlay);
+
+            const titleInput = document.getElementById("nexusPromptTitleInput");
+            titleInput.focus();
+            titleInput.select();
+
+            const cleanup = (resultObj) => {
+                overlay.remove();
+                resolve(resultObj);
+            };
+
+            const submitValues = () => {
+                cleanup({
+                    title: document.getElementById("nexusPromptTitleInput").value.trim(),
+                    upc: document.getElementById("nexusPromptUpcInput").value.trim(),
+                    price: document.getElementById("nexusPromptPriceInput").value.trim()
+                });
+            };
+
+            document.getElementById("nexusSubmitPriceBtn").addEventListener("click", submitValues);
+            document.getElementById("nexusCancelPriceBtn").addEventListener("click", () => cleanup(null));
+
+            dialog.addEventListener("keydown", (e) => {
+                if (e.key === "Enter") {
+                    submitValues();
+                } else if (e.key === "Escape") {
+                    cleanup(null);
+                }
+            });
+        });
+    }
+
     updateProgress(current, total, progressBar) {
         if (progressBar) {
             const percentage = Math.round((current / total) * 100);
@@ -216,7 +342,7 @@ class InvenTreeBatchProcessor {
         }
 
         // Wait for 10 seconds before resetting and hiding
-        await this.sleep(10000);
+        await sleep(10000);
 
         if (progressBar) {
             progressBar.style.width = "0%";
@@ -232,235 +358,6 @@ class InvenTreeBatchProcessor {
 
     stop() {
         this.shouldStop = true;
-    }
-
-    async performLookup(upc, title) {
-        try {
-            const response = await fetch('/plugin/cabal/spectacle/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': this.getCsrfToken()
-                },
-                body: JSON.stringify({ barcode: upc, title: title })
-            });
-
-            if (response.status === 429) {
-                return { success: false, error: "HTTP 429: Metron Rate Limit Exceeded. Slow down requests." };
-            }
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                return { success: false, error: `HTTP Error ${response.status} (${response.statusText}): ${errorText}` };
-            }
-
-            return await response.json();
-        } catch (e) {
-            return { success: false, error: `Network Failure: ${e.message}` };
-        }
-    }
-
-    buildInvenTreePayload(row, spectacleData) {
-        const comic = spectacleData?.comic_data || {};
-
-        return {
-            part: {
-                name: comic.title || row.title || "Unknown Title",
-                description: comic.description || (comic.issue ? `Issue #${comic.issue}` : ""),
-                IPN: row.ipn || comic.ipn_proposed || comic.pub_code || "COMIC-GENERIC",
-                barcode: row.upc || spectacleData?.scanned_barcode || comic.scanned_barcode || "",
-                category: comic.category || null,
-                keywords: `${comic.series || ''} ${comic.publisher || ''} ${comic.variant || ''}`.trim(),
-                link: comic.metron_url || comic.part_link || "",
-                image_url: comic.image_url || ""
-            },
-            
-            stock: {
-                quantity: parseInt(row.qty || 1, 10),
-                location: typeof PUBLISHER_STOCK_LOCATIONS !== 'undefined' ? PUBLISHER_STOCK_LOCATIONS[comic.pub_code] : null
-            },
-
-            pricing: {
-                retail_price: parseFloat(row.retail || comic.price || 0.00),
-                discounted_price: parseFloat(row.discounted_price || row["Discounted Price"] || 0.00),
-                listed_on_whatnot: comic.listed_on_whatnot || true
-            },
-
-            metadata: {
-                publisher: comic.publisher || "Unknown Publisher",
-                publisher_code: comic.pub_code || "",
-                series: comic.series || "",
-                volume: comic.volume || "1",
-                issue: comic.issue || "",
-                variant: comic.variant || "Standard",
-                metron_id: comic.metron_id || null,
-                store_date: comic.store_date || "",
-                matched_via: spectacleData?.message || "Direct API Match"
-            }
-        };
-    }
-
-    async createInvenTreePartAndStock(payload) {
-        if (this.dryRun) {
-            await this.sleep(150);
-            const simulatedParameters = [
-                { template_name: 16, name: "Condition", value: payload.metadata.condition || "Near Mint" },
-                { template_name: 68, name: "Store Date", value: payload.metadata.store_date || "" },
-                { template_name: 64, name: "Barcode / UPC", value: payload.part.barcode || payload.metadata.upc },
-                { template_name: 11, name: "Listed on Whatnot", value: payload.pricing.listed_on_whatnot ?? true },
-                { template_name: 69, name: "Item Cost", value: payload.pricing.discounted_price || "" },
-            ].filter(p => p.value !== "" && p.value !== null);
-
-            if (this.dryRun) {
-                this.logToUI(`🧪 [DRY RUN SIMULATION] Would create part with name: "${payload.part.name}", IPN: "${payload.part.IPN}"`);
-                this.logToUI(`🧪 [DRY RUN SIMULATION] Would download and attach image from: "${payload.part.image_url || 'None'}"`);
-                this.logToUI(`🧪 [DRY RUN SIMULATION] Would set sale price: $${payload.pricing.retail_price} (Qty: ${payload.stock.quantity})`);
-                this.logToUI(`🧪 [DRY RUN SIMULATION] Would set item cost: ${payload.pricing.discounted_price}`);
-                this.logToUI(`🧪 [DRY RUN SIMULATION] Would assign stock location ID: ${payload.stock.location}`);
-                this.logToUI(`🧪 [DRY RUN SIMULATION] Would write ${simulatedParameters.length} part parameters:\n${JSON.stringify(simulatedParameters, null, 2)}`);
-            }
-
-            return {
-                success: true,
-                data: {
-                    part: { pk: 99999, name: payload.part.name },
-                    parameters_added: simulatedParameters.length,
-                    dry_run: true
-                }
-            };
-        }
-
-        try {
-            const partRequestBody = {
-                active: true,
-                category: payload.part.category,
-                description: payload.part.description,
-                image: null,
-                IPN: payload.part.IPN,
-                name: payload.part.name,
-                salable: true,
-                virtual: false,
-            };
-
-            const partResponse = await fetch('/api/part/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': this.getCsrfToken()
-                },
-                body: JSON.stringify(partRequestBody)
-            });
-
-            if (!partResponse.ok) {
-                const errData = await partResponse.json();
-                return { 
-                    success: false, 
-                    message: `Part Creation Failed (Status ${partResponse.status}): ${JSON.stringify(errData)}` 
-                };
-            }
-
-            const createdPart = await partResponse.json();
-            const partId = createdPart.pk || createdPart.id;
-
-            if (payload.part.image_url) {
-                try {
-                    await fetch(`/plugin/cabal/attach-image/`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': this.getCsrfToken()
-                        },
-                        body: JSON.stringify({
-                            part_id: partId,
-                            image_url: payload.part.image_url
-                        })
-                    });
-                } catch (imgErr) {
-                    // Suppress network-level image attachment warnings on live runs
-                }
-            }
-
-            if (payload.pricing?.retail_price) {
-                const priceBody = {
-                    part: partId,
-                    quantity: payload.stock.quantity,
-                    price: payload.pricing.retail_price,
-                    price_currency: 'USD'
-                };
-                
-                await fetch('/api/part/sale-price/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': this.getCsrfToken()
-                    },
-                    body: JSON.stringify(priceBody)
-                });
-            }
-
-            const parametersToCreate = [
-                { template_name: 16, name: "Condition", value: payload.metadata.condition || "Near Mint" },
-                { template_name: 68, name: "Store Date", value: payload.metadata.store_date || "" },
-                { template_name: 64, name: "Barcode / UPC", value: payload.part.barcode || payload.metadata.upc },
-                { template_name: 11, name: "Listed on Whatnot", value: payload.pricing.listed_on_whatnot ?? true },
-                { template_name: 69, name: "Item Cost", value: payload.pricing.discounted_price || "" },
-            ];
-
-            const validParameters = parametersToCreate.filter(param => param.value !== "" && param.value !== null);
-
-            const parameterPromises = validParameters.map(param => {
-                const paramBody = {
-                    model_type: 'part.part',
-                    model_id: partId,
-                    template: param.template_name, 
-                    data: String(param.value)
-                };
-
-                return fetch('/api/parameter/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': this.getCsrfToken()
-                    },
-                    body: JSON.stringify(paramBody)
-                });
-            });
-
-            await Promise.all(parameterPromises);
-
-            const location_id = payload.stock.location;
-            if (location_id) {
-                const stockBody = {
-                    part: partId,
-                    quantity: payload.stock.quantity,
-                    location: location_id,
-                    notes: `Ingested via Nexus batch. Condition: ${payload.metadata.condition || "NM"}`
-                };
-                
-                await fetch('/api/stock/', {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': this.getCsrfToken()
-                    },
-                    body: JSON.stringify(stockBody)
-                });
-            }
-
-            return {
-                success: true,
-                data: {
-                    part: createdPart,
-                    parameters_added: validParameters.length
-                }
-            };
-
-        } catch (error) {
-            return {
-                success: false,
-                message: `Network or Server Error: ${error.message}`
-            };
-        }
     }
 
     recordSuccess(rowId, title, upc, payload, createdPartId = null) {
@@ -576,9 +473,5 @@ class InvenTreeBatchProcessor {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-    }
-
-    getCsrfToken() {
-        return document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
     }
 }
