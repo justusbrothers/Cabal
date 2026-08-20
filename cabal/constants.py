@@ -161,7 +161,7 @@ PUBLISHER_REGISTRY = [
     {
         "name": "Mad Cave Comics",
         "code": "MAD",
-        "prefixes": ["60196"],
+        "prefixes": ["60196", "60396"],
         "catId": 108,
         "catLabel": "Mad Cave Comics (MAD)",
         "locId": 98,
