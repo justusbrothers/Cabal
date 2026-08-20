@@ -171,7 +171,16 @@ class Spectacle(APIView):
             barcode = request.data.get("barcode", "")
             metron_id = request.data.get("metron_id", "")
 
+            logger.debug(
+                "Spectacle POST received -> raw barcode: '%s', metron_id: '%s'",
+                barcode,
+                metron_id,
+            )
+
             if not barcode and not metron_id:
+                logger.warning(
+                    "Spectacle: Request rejected -> Missing both barcode and metron_id"
+                )
                 return Response(
                     {
                         "success": False,
@@ -183,6 +192,10 @@ class Spectacle(APIView):
             barcode = "".join(c for c in str(barcode) if c.isdigit())
 
             if barcode and len(barcode) < 12 and not metron_id:
+                logger.warning(
+                    "Spectacle: Request rejected -> Invalid barcode length (%s digits)",
+                    len(barcode),
+                )
                 return Response(
                     {"success": False, "message": "Invalid barcode length"}, status=400
                 )
@@ -192,6 +205,10 @@ class Spectacle(APIView):
 
             if len(original_barcode) >= 17:
                 standard_barcode = original_barcode[:-2] + "11"
+                logger.debug(
+                    "Spectacle: Normalized 17+ digit barcode to standard base UPC: %s",
+                    standard_barcode,
+                )
 
             target_upc = standard_barcode if standard_barcode else original_barcode
 
@@ -217,6 +234,9 @@ class Spectacle(APIView):
                 metron_pass = os.environ.get("METRON_PASS")
 
                 if not metron_user or not metron_pass:
+                    logger.error(
+                        "Spectacle: Environment variables METRON_USER or METRON_PASS are missing!"
+                    )
                     return Response(
                         {"success": False, "message": "Metron credentials missing"},
                         status=500,
@@ -230,14 +250,26 @@ class Spectacle(APIView):
 
                 if MOKKARI_AVAILABLE:
                     try:
+                        logger.debug(
+                            "Spectacle: Querying via Mokkari API wrapper for UPC: %s",
+                            target_upc,
+                        )
                         api = mokkari.api(metron_user, metron_pass)
                         issues = api.issues_list({"upc": target_upc})
 
                         if not issues and target_upc != original_barcode:
+                            logger.debug(
+                                "Spectacle: Mokkari target_upc miss, retrying with original barcode: %s",
+                                original_barcode,
+                            )
                             issues = api.issues_list({"upc": original_barcode})
 
                         if issues:
                             issue_id = issues[0].id
+                            logger.debug(
+                                "Spectacle: Mokkari found issue ID %s, fetching detailed payload",
+                                issue_id,
+                            )
                             time.sleep(0.5)
 
                             issue = api.issue(issue_id)
@@ -307,10 +339,16 @@ class Spectacle(APIView):
                                     "price": variant_price,
                                     "image": str(variant_img) if variant_img else "",
                                 })
+                            logger.debug(
+                                "Spectacle: Mokkari successfully parsed anchor ID %s with %s variants",
+                                issue_id,
+                                len(all_issue_variants),
+                            )
 
                     except Exception as mk_err:
                         logger.warning(
-                            "Mokkari lookup failed, falling back: %s", mk_err
+                            "Mokkari lookup failed, falling back to direct REST: %s",
+                            mk_err,
                         )
 
                 if not issue_id:
@@ -330,6 +368,10 @@ class Spectacle(APIView):
 
                         if results:
                             issue_id = results[0].get("id")
+                            logger.debug(
+                                "Spectacle: Direct REST found issue ID %s, requesting details",
+                                issue_id,
+                            )
                             time.sleep(0.5)
 
                             detail_resp = requests.get(
@@ -366,6 +408,21 @@ class Spectacle(APIView):
                                             ),
                                             "upc": clean_variant_upc,
                                         })
+                                logger.debug(
+                                    "Spectacle: Direct REST loaded anchor ID %s with %s variants",
+                                    issue_id,
+                                    len(all_issue_variants),
+                                )
+                            else:
+                                logger.warning(
+                                    "Spectacle: Detail REST fetch failed with status code %s",
+                                    detail_resp.status_code,
+                                )
+                    else:
+                        logger.warning(
+                            "Spectacle: List REST fetch failed with status code %s",
+                            resp.status_code,
+                        )
 
                 if full_anchor:
                     cache.set(
@@ -373,8 +430,15 @@ class Spectacle(APIView):
                         {"full_anchor": full_anchor, "variants": all_issue_variants},
                         timeout=120,
                     )
+                    logger.debug(
+                        "Spectacle: Cached base issue data for key: %s", cache_key
+                    )
 
             if not issue_id or not full_anchor:
+                logger.warning(
+                    "Spectacle: No issue records found for targeted barcode: %s",
+                    target_upc,
+                )
                 return Response(
                     {
                         "success": False,
@@ -387,6 +451,11 @@ class Spectacle(APIView):
             for var in all_issue_variants:
                 if var.get("upc") == original_barcode:
                     matched_variant = var
+                    logger.debug(
+                        "Spectacle: Matched variant in list by UPC: %s (Variant ID: %s)",
+                        original_barcode,
+                        var.get("id"),
+                    )
                     break
 
             series_dict = full_anchor.get("series", {})
@@ -408,6 +477,11 @@ class Spectacle(APIView):
                 for known_name, code in constants.PUBLISHER_CODES.items():
                     if normalized_name in self.normalize_publisher_name(known_name):
                         pub_code = code
+                        logger.debug(
+                            "Spectacle: Resolved publisher code via normalization map: '%s' -> %s",
+                            raw_publisher_name,
+                            pub_code,
+                        )
                         break
 
             if pub_code == "UNK" and len(original_barcode) >= 6:
@@ -416,6 +490,11 @@ class Spectacle(APIView):
                 ):
                     if original_barcode.startswith(prefix):
                         pub_code = constants.PUBLISHER_UPC_PREFIXES[prefix]
+                        logger.debug(
+                            "Spectacle: Resolved publisher code via UPC prefix '%s' -> %s",
+                            prefix,
+                            pub_code,
+                        )
                         break
 
             category = constants.PUBLISHER_PART_CATEGORIES.get(pub_code, 1)
@@ -548,25 +627,51 @@ class Spectacle(APIView):
                 ):
                     continue
 
-                # v_name = self.clean_text_encoding(variant.get("name", "Variant"))
-                # v_price = self.clean_price_string(variant.get("price") or cover_a_price)
+                raw_var_name = self.clean_text_encoding(variant.get("name", "")).strip()
+                v_char = self.extract_variant_char(
+                    raw_var_name, upc=variant_upc, fallback_idx=idx
+                )
 
-                # v_char = self.extract_variant_char(
-                #     v_name, upc=variant_upc, fallback_idx=idx
-                # )
+                v_label = raw_var_name if raw_var_name else f"Variant {v_char}"
+                v_cover_prefix = (
+                    f"Cover {v_char} "
+                    if v_char and not re.search(r"\bcover\b", raw_var_name, re.I)
+                    else ""
+                )
+                v_display = f"{series_name} #{issue_number} - {v_cover_prefix}{raw_var_name}".strip(
+                    " -"
+                )
+                v_ipn = self.build_ipn(
+                    pub_code, base_ipn_slug, issue_number, volume, v_char
+                )
 
-                # v_ipn = self.build_ipn(
-                #     pub_code, base_ipn_slug, issue_number, volume, v_char
-                # )
+                v_price = variant.get("price") or cover_a_price
+                v_wn_price = ""
+                if v_price:
+                    try:
+                        v_wn_price = str(math.ceil(float(v_price)))
+                    except Exception:
+                        v_wn_price = ""
 
-                # v_cover_prefix = (
-                #     f"Cover {v_char} "
-                #     if (v_char and not re.search(r"\bcover\b", v_name, re.I))
-                #     else ""
-                # )
+                variants_list.append({
+                    "metron_id": variant.get("id") or cover_a_metron_id,
+                    "variant": v_label,
+                    "display_name": v_display,
+                    "ipn_proposed": v_ipn,
+                    "image_url": variant.get("image")
+                    or str(full_anchor.get("image", "")),
+                    "description": clean_description,
+                    "upc": variant_upc,
+                    "price": v_price,
+                    "whatnot_price": v_wn_price,
+                    "is_scanned_match": (variant_upc == original_barcode),
+                })
 
-                # Loop continuation (omitted rest of original loop for brevity, keep yours intact)
-
+            logger.info(
+                "Spectacle: Successfully processed request for %s (IPN: %s)",
+                display_title,
+                scanned_ipn,
+            )
             return Response(
                 {"success": True, "comic_data": comic_data, "variants": variants_list},
                 status=200,
@@ -574,7 +679,8 @@ class Spectacle(APIView):
 
         except Exception as e:
             logger.exception(
-                "Spectacle: Unhandled exception during POST request processing"
+                "Spectacle: Unhandled exception during POST request processing: %s",
+                str(e),
             )
             return Response(
                 {
