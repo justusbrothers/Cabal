@@ -27,7 +27,7 @@ const PUBLISHER_REGISTRY = [
     { name: 'Indie Comics', code: 'IND', prefixes: [], catId: 22, catLabel: 'Indie (IND)', locId: 82, locLabel: 'Indie / Studio Boxes (82)' },
     { name: 'Iron Age Comics', code: 'IAC', prefixes: ['60554'], catId: 22, catLabel: 'Iron Age Comics', locId: 82, locLabel: 'Indie / Studio Boxes (82)' },
     { name: 'Keenspot', code: 'KS', prefixes: ['60283'], catId: 110, catLabel: 'Keenspot (KS)', locId: 100, locLabel: 'Keenspot Bin (100)' },
-    { name: 'Mad Cave Comics', code: 'MAD', prefixes: ['60196'], catId: 108, catLabel: 'Mad Cave Comics (MAD)', locId: 98, locLabel: 'Mad Cave Bin (98)' },
+    { name: 'Mad Cave Comics', code: 'MAD', prefixes: ['60196', '60396'], catId: 108, catLabel: 'Mad Cave Comics (MAD)', locId: 98, locLabel: 'Mad Cave Bin (98)' },
     { name: 'Marvel Comics', code: 'MAR', prefixes: ['071486', '59606', '759606'], catId: 5, catLabel: 'Marvel Comics (MAR)', locId: 66, locLabel: 'Marvel Bin (66)' },
     { name: 'Midnight Factory', code: 'MID', prefixes: ['78200'], catId: 22, catLabel: 'Midnight Factory', locId: 82, locLabel: 'Indie / Studio Boxes (82)' },
     { name: 'Oni Press', code: 'ONI', prefixes: ['64985'], catId: 107, catLabel: 'Oni Press (ONI)', locId: 97, locLabel: 'Oni Press Bin (97)' },
