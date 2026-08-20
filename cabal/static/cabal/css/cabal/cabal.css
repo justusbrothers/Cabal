@@ -189,6 +189,12 @@ h1 em {
     color: #ffffff !important;
 }
 
+.active>.page-link,
+.page-link.active {
+    background-color: var(--accent-color) !important;
+    border-color: var(--accent-color) !important;
+}
+
 /* Form Switches & Checkboxes */
 .form-check-input:checked {
     background-color: var(--accent-color) !important;
