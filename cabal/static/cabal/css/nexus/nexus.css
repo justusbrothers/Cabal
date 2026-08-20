@@ -1,10 +1,5 @@
 /* /plugins/Cabal/cabal/static/cabal/css/nexus/nexus.css */
 
-body, html, .container {
-    background-color: #1c1d1f !important;
-    color: #e3e6e8 !important;
-}
-
 /* Input fields and forms transformation */
 .form-control, .form-select, input[type="text"], input[type="file"], select.form-select {
     background-color: #242526 !important;
@@ -94,4 +89,8 @@ body, html, .container {
 
 .text-muted {
     color: #8a8e94 !important;
+}
+
+.scan-upc-btn {
+    width: 75px !important;
 }
