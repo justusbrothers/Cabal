@@ -35,6 +35,7 @@ def _ensure_db_tables():
 @require_http_methods(["GET"])
 def get_customers(request):
     _ensure_db_tables()
+
     with connection.cursor() as cursor:
         cursor.execute(
             "SELECT buyer_name, state, country, last_transaction FROM buyers;"
