@@ -7,6 +7,7 @@ from .avisia.avisia import (
     clear_customers as clear_customers,
 )
 from .cerebro import Cerebro as Cerebro
+from .forge import Forge as Forge
 from .nexus import (
     Nexus as Nexus,
     AttachPartImageView as AttachPartImageView,

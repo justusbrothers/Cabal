@@ -1,0 +1,150 @@
+<!-- /plugins/Cabal/cabal/templates/cabal/forge.html -->
+
+{% extends "base.html" %}
+{% load static %}
+
+<!-- {% block extra_css %}{% endblock %} -->
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <h1 class="mb-4"><em>Forge</em> <span class="text-muted fs-4">| Single Issue Creator</span></h1>
+
+    <div class="row">
+        <!-- LEFT COLUMN: Form Inputs -->
+        <div class="col-lg-8 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <form id="forge-form">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Publisher</label>
+                                <select class="form-select" id="forge-publisher" required><option value="">Loading...</option></select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Series Title <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="forge-title" required>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Category ID</label>
+                                <select class="form-select" id="forge-category"><option value="">Select Category...</option></select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Internal Part Number (IPN)</label>
+                                <input type="text" class="form-control" id="forge-ipn">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">UPC Barcode</label>
+                                <input type="text" class="form-control" id="forge-upc">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" id="forge-description" rows="2" maxlength="250"></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Image URL</label>
+                            <input type="url" class="form-control" id="forge-image" placeholder="https://...">
+                        </div>
+
+                        <hr class="my-4">
+                        
+                        <h5 class="mb-3">Logistics & Pricing</h5>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-3">
+                                <label class="form-label">Stock Qty</label>
+                                <input type="number" class="form-control" id="forge-quantity" value="1" min="0">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Stock Location ID</label>
+                                <select class="form-select" id="forge-location"><option value="">Select Location...</option></select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Retail / Sale Price ($)</label>
+                                <input type="number" class="form-control" id="forge-retail-price">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Item Cost ($)</label>
+                                <input type="text" class="form-control" id="forge-discounted-price">
+                            </div>
+                        </div>
+
+                        <div class="row mb-4 align-items-center">
+                            <div class="col-md-6">
+                                <label class="form-label">Condition</label>
+                                <select class="form-select" id="forge-condition">
+                                    <option value="Near Mint" selected>Near Mint</option>
+                                    <option value="Very Fine">Very Fine</option>
+                                    <option value="Fine">Fine</option>
+                                    <option value="Good">Good</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Store Date</label>
+                                <input type="date" class="form-control" id="forge-store-date">
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="forge-whatnot-listed" checked>
+                                    <label class="form-check-label" for="forge-whatnot-listed">Listed on WhatNot</label>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="forge-dry-run">
+                                    <label class="form-check-label text-warning fw-bold" for="forge-dry-run">
+                                        <i class="fas fa-flask me-1"></i> Dry Run Mode
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <button type="submit" class="btn btn-primary w-100" id="forge-submit-btn">
+                                    <i class="fas fa-hammer me-2"></i>Forge into Inventory
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+
+                    <div id="forge-log" class="mt-4 p-3 bg-dark text-light rounded" style="display:none; max-height: 200px; overflow-y: auto; font-family: monospace; font-size: 0.85em;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN: Live Image Preview Pane -->
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow-sm sticky-top" style="top: 20px;">
+                <div class="card-header bg-secondary text-white">
+                    <i class="fas fa-image me-2"></i>Cover Preview
+                </div>
+                <div class="card-body text-center bg-light d-flex flex-column align-items-center justify-content-center" style="min-height: 420px;">
+                    <!-- Placeholder State -->
+                    <div id="preview-placeholder" class="text-muted">
+                        <i class="fas fa-book-open fa-3x mb-3"></i>
+                        <p class="mb-0">Enter an Image URL to preview the issue cover art.</p>
+                    </div>
+                    <!-- Actual Image Element -->
+                    <img id="forge-image-preview" src="" alt="Cover Preview" class="img-fluid rounded shadow" style="display: none; max-height: 500px; object-fit: contain;">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'plugins/cabal/cabal/js/nexus/_config.js' %}"></script>
+<script src="{% static 'plugins/cabal/cabal/js/forge/forge.js' %}"></script>
+{% endblock %}
