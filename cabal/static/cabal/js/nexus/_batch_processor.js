@@ -1,8 +1,17 @@
 // /plugins/Cabal/cabal/static/cabal/js/nexus/_batch_processor.js
 
+// Safely resolve Cabal whether running standalone or inside an iframe
+const Cabal = window.Cabal || window.parent?.Cabal || window.top?.Cabal;
+
+if (Cabal) {
+    console.log("Successfully accessed parent's Cabal instance!", Cabal);
+} else {
+    console.warn("Cabal object not found on parent or local scope.");
+}
+
 class InvenTreeBatchProcessor {
     constructor(options = {}) {
-        this.delayMs = options.delayMs || 1200; 
+        this.delayMs = options.delayMs || 3000; 
         this.isProcessing = false;
         this.shouldStop = false;
         
@@ -14,6 +23,9 @@ class InvenTreeBatchProcessor {
     }
 
     async startBatch(rows) {
+        console.group(`📦 [Nexus Batch Processor] Starting Batch`);
+        console.log('startBatch', rows)
+
         this.isProcessing = true;
         this.shouldStop = false;
         this.successfulEntries = [];
@@ -30,6 +42,7 @@ class InvenTreeBatchProcessor {
         // Always show the progress bar now
         if (progressContainer) {
             progressContainer.style.display = "block";
+
             if (progressBar) {
                 progressBar.style.width = "0%";
                 progressBar.textContent = "0%";
@@ -48,23 +61,29 @@ class InvenTreeBatchProcessor {
             }
 
             const row = rows[index];
-            const upc = String(row.upc || row[1] || "").trim();
-            const title = String(row.title || row[0] || "").trim();
+            
+            // Safely resolve Title, UPC, Qty, Retail, and Discounted Price handling casing variations and array fallbacks
+            const title = String(row.Title ?? row.title ?? row["Title"] ?? (Array.isArray(row) ? row[0] : "")).trim();
+            const upc = String(row.UPC ?? row.upc ?? row["UPC"] ?? row["Barcode"] ?? (Array.isArray(row) ? row[1] : "")).trim();
             const rowId = index + 1;
 
             this.logToUI(`\n--------------------------------------------------`);
             this.logToUI(`[${rowId}/${rows.length}] Processing: "${title}" (UPC: ${upc || 'N/A'})`);
+            
+            const rawRowString = typeof row === 'object' ? JSON.stringify(row) : String(row);
+            this.logToUI(`Evaluating Row Data: ${rawRowString}`);
+            console.log(`🔍 [Row ${rowId} Raw Data Dump]:`, row);
 
             try {
                 if (this.dryRun) { this.logToUI(`🔍 [DEBUG] Sending Metron lookup query -> Barcode: "${upc}", Title: "${title}"`); }
 
-                const lookupResult = await window.NexusInventreeHelpers.performLookup(upc, title);
+                const lookupResult = await Cabal.performSpectacleLookup(upc, title);
 
                 if (!lookupResult || !lookupResult.success) {
                     const failReason = lookupResult?.error || lookupResult?.message || "Lookup failed: No matching comic found on Metron.";
                     if (this.dryRun) { this.logToUI(`❌ [DEBUG] Metron lookup returned failure: ${JSON.stringify(lookupResult, null, 2)}`); }
                     this.recordFailure(rowId, row, failReason);
-                    await sleep(this.delayMs);
+                    await Cabal.sleep(this.delayMs);
                     this.updateProgress(index + 1, loop_length, progressBar);
                     continue;
                 }
@@ -89,7 +108,7 @@ class InvenTreeBatchProcessor {
                     if (this.dryRun) { this.logToUI(`✏️ [DEBUG] Continuing batch with updated title: "${updatedTitle}"`); }
                 }
 
-                const payload = window.NexusInventreeHelpers.buildInvenTreePayload(row, lookupResult);
+                const payload = Cabal.buildInvenTreePayload(row, lookupResult);
                 
                 // --- DISCOUNTED PRICE & QUANTITY EVALUATION & ADJUSTMENT ---
                 if (payload && payload.pricing && payload.stock) {
@@ -127,7 +146,7 @@ class InvenTreeBatchProcessor {
 
                 if (this.dryRun) { this.logToUI(`📦 [DEBUG] Constructed InvenTree payload:\n${JSON.stringify(payload, null, 2)}`); }
 
-                const result = await window.NexusInventreeHelpers.createInvenTreePartAndStock(payload, this.dryRun, this.logToUI);
+                const result = await Cabal.createInvenTreePartAndStock(payload, this.dryRun, this.logToUI);
 
                 if (result && result.success) {
                     if (this.dryRun) { this.logToUI(`🎉 [DEBUG] InvenTree write successful response:\n${JSON.stringify(result, null, 2)}`); }
@@ -142,7 +161,9 @@ class InvenTreeBatchProcessor {
                 this.recordFailure(rowId, row, `Unexpected Script Error: ${err.message}`);
             }
 
-            await sleep(this.delayMs);
+            console.log('Cabal.sleep', Cabal.sleep);
+
+            await Cabal.sleep(this.delayMs);
             this.updateProgress(index + 1, loop_length, progressBar);
         }
 
@@ -150,6 +171,8 @@ class InvenTreeBatchProcessor {
         this.printSummary();
         this.exportBatchReportToExcel();
         await this.finalizeProgress(progressBar, progressContainer);
+
+        console.groupEnd();
     }
 
     promptForLongTitle(rowId, currentTitle) {
@@ -183,6 +206,7 @@ class InvenTreeBatchProcessor {
                         width: 100%; padding: 10px; background: #2a2a2a; border: 1px solid #444;
                         color: #fff; border-radius: 4px; font-size: 14px; box-sizing: border-box;
                     ">
+                    <div id="nexusLongTitleCounter" style="font-size: 11px; text-align: right; margin-top: 4px; color: #888;"></div>
                 </div>
                 <div style="display: flex; justify-content: flex-end; gap: 10px;">
                     <button id="nexusCancelBatchBtn" type="button" style="
@@ -200,6 +224,23 @@ class InvenTreeBatchProcessor {
             document.body.appendChild(overlay);
 
             const inputField = document.getElementById("nexusLongTitleInput");
+            const counterDiv = document.getElementById("nexusLongTitleCounter");
+
+            const updateCounter = () => {
+                const len = inputField.value.length;
+                counterDiv.textContent = `${len} / 100 chars`;
+                if (len > 100) {
+                    counterDiv.style.color = "#ff4d4d";
+                    counterDiv.style.fontWeight = "bold";
+                } else {
+                    counterDiv.style.color = "#888";
+                    counterDiv.style.fontWeight = "normal";
+                }
+            };
+
+            updateCounter();
+            inputField.addEventListener("input", updateCounter);
+
             inputField.focus();
             inputField.select();
 
@@ -229,7 +270,6 @@ class InvenTreeBatchProcessor {
     promptForPriceAdjustment(rowId, currentTitle, currentUpc, discountedPrice, quantity) {
         return new Promise((resolve) => {
             const existingOverlay = document.getElementById("nexusPricePromptOverlay");
-
             if (existingOverlay) existingOverlay.remove();
 
             const overlay = document.createElement("div");
@@ -327,7 +367,6 @@ class InvenTreeBatchProcessor {
             progressBar.style.width = `${percentage}%`;
             progressBar.textContent = `${percentage}% (${current}/${total})`;
             
-            // Ensure standard styling while progressing
             progressBar.classList.remove('bg-success');
             progressBar.classList.add('bg-primary');
         }
@@ -338,11 +377,10 @@ class InvenTreeBatchProcessor {
             progressBar.style.width = "100%";
             progressBar.textContent = "100% (Complete)";
             progressBar.classList.remove('bg-primary');
-            progressBar.classList.add('bg-success'); // Solid green
+            progressBar.classList.add('bg-success');
         }
 
-        // Wait for 10 seconds before resetting and hiding
-        await sleep(10000);
+        await Cabal.sleep(10000);
 
         if (progressBar) {
             progressBar.style.width = "0%";
@@ -369,8 +407,8 @@ class InvenTreeBatchProcessor {
     }
 
     recordFailure(rowId, row, reason) {
-        const title = String(row?.title || row?.[0] || "").trim();
-        const upc = String(row?.upc || row?.[1] || "").trim();
+        const title = String(row?.Title || row?.title || row?.[0] || "").trim();
+        const upc = String(row?.UPC || row?.upc || row?.[1] || "").trim();
 
         const entry = { rowId, row, title, upc, reason };
         this.failedEntries.push(entry);
@@ -379,7 +417,6 @@ class InvenTreeBatchProcessor {
     }
 
     logToUI(message) {
-        // Always stream to the dev console
         console.log(message);
 
         const logTextArea = document.getElementById("sessionIpnLog");
@@ -430,8 +467,8 @@ class InvenTreeBatchProcessor {
         }));
 
         const erroredData = this.failedEntries.map(e => ({
+            ...(e.originalRow || e.row || {}),
             "Batch Row ID": e.rowId,
-            ...(e.row || {}),
             "Failure Reason": e.reason
         }));
 

@@ -38,17 +38,37 @@ function getVariantLetterFromUPC(upcString) {
 }
 
 function handleScanClick(e) {
-    const targetGlobalIndex = parseInt(this.getAttribute('data-global-index'));
-    const rowData = previewRows[targetGlobalIndex];
-    if (!rowData || typeof upcColIndex === "undefined" || upcColIndex === -1) return;
+    console.group(`🖱️ [Scan Click Handler] Click event triggered on scan button`);
+    
+    const targetGlobalIndex = parseInt(this.getAttribute('data-global-index'), 10);
+    console.log(`📌 Target Global Index parsed:`, targetGlobalIndex);
 
-    const extractedBarcode = String(rowData[upcColIndex] || "").trim();
-    if (!extractedBarcode) { 
-        alert("Target barcode column cell is empty."); 
-        return; 
+    const rowData = previewRows[targetGlobalIndex];
+    console.log(`📋 Row Data retrieved from previewRows:`, rowData);
+
+    if (!rowData) {
+        console.warn(`⚠️ [Scan Click] Row data not found for index ${targetGlobalIndex}. Aborting.`);
+        console.groupEnd();
+        return;
+    }
+
+    // Explicitly grab index 1 for the barcode (or fallback to upcColIndex if index 1 is missing)
+    const targetIndex = 1;
+    const rawCellVal = rowData[targetIndex] !== undefined ? rowData[targetIndex] : rowData[upcColIndex];
+    console.log(`🔍 [Scan Click] Target cell value at index ${targetIndex}:`, rawCellVal, `(Type: ${typeof rawCellVal})`);
+
+    const extractedBarcode = String(rawCellVal || "").trim();
+    console.log(`barcode [Scan Click] Extracted & trimmed barcode:`, JSON.stringify(extractedBarcode));
+
+    if (!extractedBarcode) {
+        console.warn(`⚠️ [Scan Click] Extracted barcode is empty! Alerting user.`);
+        alert("Target barcode column cell is empty.");
+        console.groupEnd();
+        return;
     }
 
     if (!scannerModal) {
+        console.log(`🪟 [Scan Click] Initializing Bootstrap scannerModal instance...`);
         scannerModal = new bootstrap.Modal(document.getElementById('comicScannerModal'));
     }
 
@@ -58,28 +78,18 @@ function handleScanClick(e) {
             <p class="mt-2 text-muted">Querying comic registry for: <strong>${extractedBarcode}</strong>...</p>
         </div>`;
     scannerModal.show();
+    console.log(`🚀 [Scan Click] Modal displayed. Dispatching performSpectacleLookup for barcode: "${extractedBarcode}"`);
 
-    // Safely extract the token dynamically from the DOM wrapper environment
-    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || "";
-
-    // window.NexusInventreeHelpers.performLookup(extractedBarcode);
-
-    fetch('/plugin/cabal/spectacle/', {
-        method: 'POST',
-        headers: { 
-            'Content-Type': 'application/json', 
-            'X-CSRFToken': csrfToken 
+    window.Cabal.performSpectacleLookup(extractedBarcode, rowData[0] || "", 
+        (data) => {
+            console.log(`🎉 [Scan Click Success Callback] Lookup succeeded with data:`, data);
+            loadModalWithData(data, rowData, extractedBarcode);
+            console.groupEnd();
         },
-        body: JSON.stringify({ barcode: extractedBarcode })
-    })
-    .then(res => res.ok ? res.json() : Promise.reject(new Error("Registry lookup connection error.")))
-    .then(data => {
-        if (!data.success || !data.comic_data) {
-            throw new Error(data.message || "No matched records found in the registry.");
+        (err) => {
+            console.error(`❌ [Scan Click Error Callback] Lookup failed with error:`, err);
+            modalBody.innerHTML = `<div class="alert alert-danger mt-2 font-monospace small"><strong>Lookup Failed for Barcode "${extractedBarcode}":</strong> ${err.error}</div>`;
+            console.groupEnd();
         }
-        loadModalWithData(data, rowData, extractedBarcode);
-    })
-    .catch(err => { 
-        modalBody.innerHTML = `<div class="alert alert-danger mt-2 font-monospace small">${err.message}</div>`; 
-    });
+    );
 }

@@ -363,92 +363,45 @@ function loadModalWithData(spectacleData, originalRowData, currentUPC) {
     }
 }
 
-submitBtn.addEventListener('click', function() {
+submitBtn.addEventListener('click', async function() {
     const activeUPC = document.getElementById('edit_upc')?.value.trim() || "";
     const sanitizedCombinedTitle = document.getElementById('combined_title_preview')?.textContent.trim() || document.getElementById('edit_title').value.trim();
 
-    const payload = {
-        active_upc: activeUPC,
-        category_id: parseInt(document.getElementById('edit_category').value) || 1,
-        condition: document.getElementById('edit_condition').value,
-        description: document.getElementById('edit_description').value.trim(),
-        image_url: document.getElementById('edit_image_url')?.value.trim() || "",
-        ipn_proposed: document.getElementById('edit_ipn')?.value.trim() || "",
-        listed_on_whatnot: document.getElementById('edit_whatnot_sync').checked ? "True" : "False",
-        location_id: parseInt(document.getElementById('edit_location').value) || null,
-        quantity: parseInt(document.getElementById('edit_qty').value) || 1,
-        store_date: document.getElementById('edit_store_date').value || "",
-        title: sanitizedCombinedTitle,
-        whatnot_price: document.getElementById('edit_price').value || "0",
+    const structuredPayload = {
+        metadata: {
+            condition: document.getElementById('edit_condition').value || "Near Mint",
+            store_date: document.getElementById('edit_store_date').value || "",
+            upc: activeUPC
+        },
+        part: {
+            name: sanitizedCombinedTitle,
+            IPN: document.getElementById('edit_ipn')?.value.trim() || "",
+            description: document.getElementById('edit_description').value.trim(),
+            category: parseInt(document.getElementById('edit_category').value) || 1,
+            barcode: activeUPC,
+            image_url: document.getElementById('edit_image_url')?.value.trim() || ""
+        },
+        pricing: {
+            retail_price: document.getElementById('edit_price').value || "0",
+            discounted_price: document.getElementById('edit_discounted_price')?.value || "",
+            listed_on_whatnot: document.getElementById('edit_whatnot_sync')?.checked ?? true
+        },
+        stock: {
+            quantity: parseInt(document.getElementById('edit_qty').value) || 1,
+            location: parseInt(document.getElementById('edit_location').value) || null
+        }
     };
 
     submitBtn.disabled = true;
     submitBtn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status"></span> Creating...`;
 
-    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || "";
+    try {
+        const result = await window.Cabal.createInvenTreePartAndStock(structuredPayload, false, console.log);
 
-    fetch('/api/part/', {
-        method: 'POST',
-        headers: { 
-            'Content-Type': 'application/json', 
-            'X-CSRFToken': csrfToken 
-        },
-        body: JSON.stringify({
-            active: true,
-            category: payload.category_id,
-            description: payload.description,
-            image: null,
-            IPN: payload.ipn_proposed,
-            name: payload.title,
-            remote_image: payload.image_url || null,
-            virtual: false,
-        })
-    })
-    .then(res => { 
-        if (!res.ok) {
-            throw new Error("Part definition structural compilation failure.");
+        if (!result.success) {
+            throw new Error(result.message || "Failed to create part and stock record.");
         }
 
-        return res.json(); 
-    })
-    .then(partData => {
-        if (!partData.pk) {
-            throw new Error("Part created without a valid database primary key response.");
-        }
-
-        const sequentialPromises = [];
-        
-        if (typeof ensureParameter === "function") {
-            sequentialPromises.push(ensureParameter(partData.pk, 'listed_on_whatnot', payload.listed_on_whatnot === "True", true, 11, csrfToken));
-            sequentialPromises.push(ensureParameter(partData.pk, 'whatnot_price', payload.whatnot_price, false, 21, csrfToken));
-            sequentialPromises.push(ensureParameter(partData.pk, 'store_date', payload.store_date, false, 68, csrfToken));
-            sequentialPromises.push(ensureParameter(partData.pk, 'condition', payload.condition, false, 16, csrfToken));
-            sequentialPromises.push(ensureParameter(partData.pk, 'upc', payload.active_upc, false, 64, csrfToken));
-        }
-
-        if (payload.location_id) {
-            sequentialPromises.push(
-                fetch('/api/stock/', {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json', 
-                        'X-CSRFToken': csrfToken 
-                    },
-                    body: JSON.stringify({
-                        part: partData.pk,
-                        quantity: payload.quantity,
-                        location: payload.location_id,
-                        notes: `Ingested via Nexus. Condition grade: ${payload.condition}`
-                    })
-                }).then(stockRes => {
-                    if (!stockRes.ok) throw new Error("Part created, but Stock Record ingestion failed.");
-                })
-            );
-        }
-
-        return Promise.all(sequentialPromises).then(() => partData);
-    })
-    .then(() => {
         submitBtn.className = "btn btn-sm btn-success font-monospace";
         submitBtn.innerHTML = `✓ Saved! Modal kept open`;
 
@@ -473,8 +426,9 @@ submitBtn.addEventListener('click', function() {
             }
         }
 
-        if (typeof logSessionIpn === "function") {
-            logSessionIpn(payload.ipn_proposed);
+        const proposedIpn = document.getElementById('edit_ipn')?.value.trim() || "";
+        if (typeof logSessionIpn === "function" && proposedIpn) {
+            logSessionIpn(proposedIpn);
         }
 
         setTimeout(() => {
@@ -482,11 +436,11 @@ submitBtn.addEventListener('click', function() {
             submitBtn.innerHTML = `🚀 Create Part & Stock Record`;
             submitBtn.disabled = false;
         }, 2000);
-    })
-    .catch(err => {
+
+    } catch (err) {
         alert(`Pipeline Error: ${err.message}`);
         submitBtn.disabled = false;
         submitBtn.className = "btn btn-sm btn-danger text-white font-monospace";
         submitBtn.innerHTML = `🚀 Create Part & Stock Record`;
-    });
+    }
 });

@@ -1,8 +1,9 @@
 // /plugins/Cabal/cabal/static/cabal/js/nexus/_matrix_table.js
 
-const rowsPerPage = 10;
-let currentPage = 1;
 let activeFilteredRows = [];
+// Track hidden/entered row global indices
+if (typeof window.hiddenGlobalIndices === 'undefined') window.hiddenGlobalIndices = new Set();
+let showHiddenRows = false;
 
 if (typeof window.previewRows === 'undefined') window.previewRows = [];
 if (typeof window.fullRows === 'undefined') window.fullRows = [];
@@ -13,35 +14,33 @@ let upcColIndex = -1;
 let discountedColIndex = -1;
 
 function hydratePreviewRowsFromDOM() {
-    if (window.previewRows.length > 0) return;
-
-    // Pull filtered preview rows for the UI table
-    const previewScript = document.getElementById('preview-data-matrix');
-    if (previewScript) {
-        try {
-            window.previewRows = JSON.parse(previewScript.textContent);
-            console.log("🐛 [Cabal Debug] Hydrated previewRows from JSON script:", window.previewRows.length, "rows");
-        } catch (e) {
-            console.error("🐛 [Cabal Debug] Failed to parse preview-data-matrix JSON:", e);
+    // 1. Hydrate previewRows if empty
+    if (window.previewRows.length === 0) {
+        const previewScript = document.getElementById('preview-data-matrix');
+        if (previewScript) {
+            try {
+                window.previewRows = JSON.parse(previewScript.textContent);
+                console.log("🐛 [Cabal Debug] Hydrated previewRows from JSON script:", window.previewRows.length, "rows");
+            } catch (e) {
+                console.error("🐛 [Cabal Debug] Failed to parse preview-data-matrix JSON:", e);
+            }
         }
-    } else {
-        console.warn("🐛 [Cabal Debug] preview-data-matrix script tag not found.");
     }
 
-    // Pull full rows containing complete pricing data matrix for batch processor
-    const fullScript = document.getElementById('full-data-matrix');
-    if (fullScript) {
-        try {
-            window.fullRows = JSON.parse(fullScript.textContent);
-            console.log("🐛 [Cabal Debug] Hydrated fullRows from JSON script:", window.fullRows.length, "rows");
-        } catch (e) {
-            console.error("🐛 [Cabal Debug] Failed to parse full-data-matrix JSON:", e);
+    // 2. Hydrate fullRows independently if empty
+    if (window.fullRows.length === 0) {
+        const fullScript = document.getElementById('full-data-matrix');
+        if (fullScript) {
+            try {
+                window.fullRows = JSON.parse(fullScript.textContent);
+                console.log("🐛 [Cabal Debug] Hydrated fullRows from JSON script:", window.fullRows.length, "rows");
+            } catch (e) {
+                console.error("🐛 [Cabal Debug] Failed to parse full-data-matrix JSON:", e);
+            }
         }
-    } else {
-        console.warn("🐛 [Cabal Debug] full-data-matrix script tag not found.");
     }
 
-    // Fallback if script tags aren't present yet
+    // 3. DOM Scraping Fallbacks if still empty
     if (window.previewRows.length === 0) {
         const trs = document.querySelectorAll('#previewTableBody tr.parent-comic-row');
         const rows = [];
@@ -52,7 +51,6 @@ function hydratePreviewRowsFromDOM() {
             }
         });
         window.previewRows = rows;
-        console.log("🐛 [Cabal Debug] Fallback DOM table scrape found previewRows:", window.previewRows.length);
     }
 
     if (window.fullRows.length === 0) {
@@ -62,8 +60,6 @@ function hydratePreviewRowsFromDOM() {
 
 function syncColumnIndicesFromDOM() {
     const ths = Array.from(document.querySelectorAll('#previewTable th')).map(th => th.textContent.trim().toLowerCase());
-    console.log("🐛 [Cabal Debug] Detected Table Headers:", ths);
-
     if (ths.length === 0) return;
 
     if (retailColIndex === -1) {
@@ -85,8 +81,6 @@ function syncColumnIndicesFromDOM() {
         const idx = ths.findIndex(h => h === 'discounted price' || h === 'cost' || h === 'disc price' || h === 'wholesale' || h === 'discounted_price');
         if (idx !== -1) discountedColIndex = idx;
     }
-
-    console.log("🐛 [Cabal Debug] Column Index Mappings -> Retail:", retailColIndex, "| Qty:", qtyColIndex, "| UPC:", upcColIndex, "| Discounted/Cost:", discountedColIndex);
 }
 
 function filterAndRenderMatrix() {
@@ -106,7 +100,9 @@ function filterAndRenderMatrix() {
 
     rawFiltered.forEach(row => {
         if (!row) return;
-        const upc = String(Array.isArray(row) ? (row[upcColIndex] || "") : (row.upc || row.barcode || "")).trim();
+        
+        const targetUpcIdx = (upcColIndex !== -1 && upcColIndex < row.length) ? upcColIndex : 1;
+        const upc = String(Array.isArray(row) ? (row[targetUpcIdx] || "") : (row.upc || row.barcode || "")).trim();
         
         if (upc.length === 17 && !upc.endsWith("11")) {
             childVariantsBacklog.push(row);
@@ -118,7 +114,8 @@ function filterAndRenderMatrix() {
     });
 
     childVariantsBacklog.forEach(row => {
-        const upc = String(Array.isArray(row) ? (row[upcColIndex] || "") : (row.upc || row.barcode || "")).trim();
+        const targetUpcIdx = (upcColIndex !== -1 && upcColIndex < row.length) ? upcColIndex : 1;
+        const upc = String(Array.isArray(row) ? (row[targetUpcIdx] || "") : (row.upc || row.barcode || "")).trim();
         const baseUPC = upc.substring(0, 15);
 
         if (parentMap[baseUPC] !== undefined) {
@@ -131,41 +128,41 @@ function filterAndRenderMatrix() {
 
     window.variantGroups = parentMap; 
     activeFilteredRows = standaloneOrParents;
-    currentPage = 1; 
-    displayPage(1);
+    renderAllRows();
 }
 
-function displayPage(page) {
-    const totalPages = Math.ceil(activeFilteredRows.length / rowsPerPage) || 1;
-    if (page < 1) page = 1;
-    if (page > totalPages) page = totalPages;
-    currentPage = page;
-
+function renderAllRows() {
     const tbody = document.getElementById('previewTableBody');
     if (!tbody) return;
     tbody.innerHTML = '';
 
     if (activeFilteredRows.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="20" class="text-center text-muted p-4">No data loaded. Upload a CSV file above to populate the table.</td></tr>`;
-        updateControls(totalPages);
+        tbody.innerHTML = `<tr><td colspan="20" class="text-center text-muted p-4">No matching records found.</td></tr>`;
+        updateEntryCount();
         return;
     }
 
-    const start = (page - 1) * rowsPerPage;
-    const end = Math.min(start + rowsPerPage, activeFilteredRows.length);
+    let visibleRenderedCount = 0;
 
-    for (let i = start; i < end; i++) {
-        const targetRow = activeFilteredRows[i];
+    activeFilteredRows.forEach((targetRow) => {
         const originalGlobalIndex = window.previewRows.indexOf(targetRow);
+        const isHidden = window.hiddenGlobalIndices.has(originalGlobalIndex);
+
+        if (isHidden && !showHiddenRows) {
+            return; // Skip rendering if hidden and toggle is off
+        }
+
+        visibleRenderedCount++;
         
-        const upc = String(Array.isArray(targetRow) ? (targetRow[upcColIndex] || "") : (targetRow.upc || targetRow.barcode || "")).trim();
+        const targetUpcIdx = (upcColIndex !== -1 && upcColIndex < targetRow.length) ? upcColIndex : 1;
+        const upc = String(Array.isArray(targetRow) ? (targetRow[targetUpcIdx] || "") : (targetRow.upc || targetRow.barcode || "")).trim();
         const baseUPC = upc.length === 17 ? upc.substring(0, 15) : null;
         const associatedVariants = baseUPC ? (window.variantGroups[baseUPC] || []) : [];
 
         let rowHtml = `
-            <tr class="parent-comic-row align-middle" id="row-global-${originalGlobalIndex}">
+            <tr class="parent-comic-row align-middle ${isHidden ? 'table-secondary opacity-50 d-none-toggle' : ''}" id="row-global-${originalGlobalIndex}">
                 <td class="text-center">
-                    <input type="checkbox" class="form-check-input parent-row-chk" data-global-index="${originalGlobalIndex}">
+                    <input type="checkbox" class="form-check-input parent-row-chk" data-global-index="${originalGlobalIndex}" ${isHidden ? 'checked disabled' : ''}>
                 </td>
         `;
 
@@ -183,6 +180,7 @@ function displayPage(page) {
             <td class="text-center">
                 <div class="d-flex align-items-center justify-content-center gap-1">
                     <button type="button" class="btn btn-sm btn-outline-info scan-upc-btn" data-global-index="${originalGlobalIndex}">🔍 Scan</button>
+                    <button type="button" class="btn btn-sm btn-outline-danger hide-row-btn" data-global-index="${originalGlobalIndex}" title="Hide/Collapse Record">❌</button>
                     ${associatedVariants.length > 0 ? `<button type="button" class="btn btn-sm btn-dark text-warning font-monospace toggle-drawer-btn" data-base-upc="${baseUPC}">▼ ${associatedVariants.length}</button>` : ''}
                 </div>
             </td>
@@ -231,17 +229,12 @@ function displayPage(page) {
             drawerHtml += `</tbody></table></div></td></tr>`;
             tbody.insertAdjacentHTML('beforeend', drawerHtml);
         }
-    }
+    });
 
     attachScanButtonEvents();
     attachDrawerEvents();
-    updateControls(totalPages);
-
-    // Re-sync master header checkbox state when page changes
-    const selectAllCheckbox = document.getElementById('selectAllRows');
-    if (selectAllCheckbox) {
-        selectAllCheckbox.checked = false;
-    }
+    attachHideButtonEvents();
+    updateEntryCount();
 }
 
 function attachDrawerEvents() {
@@ -258,36 +251,83 @@ function attachDrawerEvents() {
     });
 }
 
-function updateControls(totalPages) {
-    const info = document.getElementById('paginationInfo');
-    const controls = document.getElementById('paginationControls');
-    if (!info || !controls) return;
+function attachHideButtonEvents() {
+    document.querySelectorAll('.hide-row-btn').forEach(btn => {
+        btn.removeEventListener('click', handleHideClick);
+        btn.addEventListener('click', handleHideClick);
+    });
+}
 
-    const start = activeFilteredRows.length > 0 ? (currentPage - 1) * rowsPerPage + 1 : 0;
-    const end = Math.min(start + rowsPerPage - 1, activeFilteredRows.length);
-    info.textContent = `Showing ${start} to ${end} of ${activeFilteredRows.length} total entries`;
+function handleHideClick() {
+    const globalIndex = parseInt(this.getAttribute('data-global-index'), 10);
+    if (isNaN(globalIndex)) return;
 
-    controls.innerHTML = '';
-    if (totalPages <= 1) return;
+    // Toggle hidden status
+    if (window.hiddenGlobalIndices.has(globalIndex)) {
+        window.hiddenGlobalIndices.delete(globalIndex);
+    } else {
+        window.hiddenGlobalIndices.add(globalIndex);
+    }
 
-    controls.insertAdjacentHTML('beforeend', `<li class="page-item ${currentPage === 1 ? 'disabled' : ''}"><a class="page-link" href="#" data-page="${currentPage - 1}">Previous</a></li>`);
-    for (let p = 1; p <= totalPages; p++) {
-        if (p === 1 || p === totalPages || (p >= currentPage - 2 && p <= currentPage + 2)) {
-            controls.insertAdjacentHTML('beforeend', `<li class="page-item ${currentPage === p ? 'active' : ''}"><a class="page-link" href="#" data-page="${p}">${p}</a></li>`);
+    // Find row and nullify/uncheck checkbox
+    const row = document.getElementById(`row-global-${globalIndex}`);
+    if (row) {
+        const chk = row.querySelector('.parent-row-chk');
+        if (chk) {
+            chk.checked = false;
+            chk.disabled = window.hiddenGlobalIndices.has(globalIndex);
+        }
+        
+        if (!showHiddenRows && window.hiddenGlobalIndices.has(globalIndex)) {
+            row.classList.add('d-none');
         }
     }
-    controls.insertAdjacentHTML('beforeend', `<li class="page-item ${currentPage === totalPages ? 'disabled' : ''}"><a class="page-link" href="#" data-page="${currentPage + 1}">Next</a></li>`);
+    
+    updateEntryCount();
+}
 
-    controls.querySelectorAll('a[data-page]').forEach(link => {
-        link.addEventListener('click', function(e) {
-            e.preventDefault();
-            displayPage(parseInt(this.getAttribute('data-page')));
-        });
+function ensureToggleControlExists() {
+    const infoContainer = document.getElementById('paginationInfo')?.parentNode || document.getElementById('uiTableFilterToken')?.parentNode;
+    if (!infoContainer || document.getElementById('toggleHiddenRowsBtn')) return;
+
+    const toggleBtn = document.createElement('button');
+    toggleBtn.type = 'button';
+    toggleBtn.id = 'toggleHiddenRowsBtn';
+    toggleBtn.className = 'btn btn-sm btn-outline-secondary ms-2 font-monospace';
+    toggleBtn.style.fontSize = '11px';
+    toggleBtn.textContent = '👁️ Show Entered/Hidden (0)';
+    
+    toggleBtn.addEventListener('click', function() {
+        showHiddenRows = !showHiddenRows;
+        this.classList.toggle('active', showHiddenRows);
+        this.classList.toggle('btn-secondary', showHiddenRows);
+        this.classList.toggle('btn-outline-secondary', !showHiddenRows);
+        renderAllRows();
     });
+
+    infoContainer.appendChild(toggleBtn);
+}
+
+function updateEntryCount() {
+    const info = document.getElementById('paginationInfo');
+    if (!info) return;
+
+    ensureToggleControlExists();
+    const hiddenCount = window.hiddenGlobalIndices.size;
+    const toggleBtn = document.getElementById('toggleHiddenRowsBtn');
+    if (toggleBtn) {
+        toggleBtn.textContent = `👁️ Show Entered/Hidden (${hiddenCount})`;
+    }
+
+    const totalFiltered = activeFilteredRows.length;
+    const visibleCount = showHiddenRows ? totalFiltered : totalFiltered - Array.from(window.hiddenGlobalIndices).filter(idx => activeFilteredRows.some(r => window.previewRows.indexOf(r) === idx)).length;
+
+    info.textContent = `Showing ${visibleCount} of ${totalFiltered} filtered entries (${hiddenCount} hidden)`;
 }
 
 function attachScanButtonEvents() {
     if (typeof handleScanClick !== 'function') return;
+
     document.querySelectorAll('.scan-upc-btn').forEach(btn => {
         btn.removeEventListener('click', handleScanClick);
         btn.addEventListener('click', handleScanClick);
@@ -296,7 +336,7 @@ function attachScanButtonEvents() {
 
 function getSelectedRowIndices() {
     const selectedIndices = [];
-    document.querySelectorAll('.parent-row-chk:checked').forEach(chk => {
+    document.querySelectorAll('.parent-row-chk:checked:not(:disabled)').forEach(chk => {
         const idx = parseInt(chk.getAttribute('data-global-index'), 10);
         if (!isNaN(idx)) {
             selectedIndices.push(idx);
@@ -307,20 +347,18 @@ function getSelectedRowIndices() {
 
 document.getElementById('uiTableFilterToken')?.addEventListener('input', filterAndRenderMatrix);
 
-// Initial structural scan and hydration
 document.addEventListener('DOMContentLoaded', () => {
     hydratePreviewRowsFromDOM();
     syncColumnIndicesFromDOM();
+    ensureToggleControlExists();
 
-    // Hook up master select-all toggle header checkbox
     const selectAllCheckbox = document.getElementById('selectAllRows');
     if (selectAllCheckbox) {
         selectAllCheckbox.addEventListener('change', function() {
             const isChecked = this.checked;
-            document.querySelectorAll('.parent-row-chk').forEach(chk => {
+            document.querySelectorAll('.parent-row-chk:not(:disabled)').forEach(chk => {
                 chk.checked = isChecked;
             });
-            console.log("🐛 [Cabal Debug] Master select-all toggled:", isChecked);
         });
     }
 
@@ -331,40 +369,35 @@ document.addEventListener('DOMContentLoaded', () => {
     const batchProcessor = new InvenTreeBatchProcessor({ delayMs: 1200 });
 
     window.runAutomatedBatch = async function() {
-        if (batchProcessor.isProcessing) {
-            console.warn("🐛 [Cabal Debug] Batch process is already running.");
-            return;
-        }
+        if (batchProcessor.isProcessing) return;
 
         if (typeof hydratePreviewRowsFromDOM === 'function') {
             hydratePreviewRowsFromDOM();
         }
 
-        const sourceDataset = window.fullRows.length > 0 ? window.fullRows : window.previewRows;
+        // 🛑 Force array safety check
+        let sourceDataset = window.fullRows.length > 0 ? window.fullRows : window.previewRows;
+        if (!Array.isArray(sourceDataset)) {
+            sourceDataset = Object.values(sourceDataset || {});
+        }
 
-        if (!sourceDataset || sourceDataset.length === 0) {
-            batchProcessor.logToUI("❌ No rows available to process. Please upload and render a CSV file first.");
+        if (sourceDataset.length === 0) {
+            batchProcessor.logToUI("❌ No rows available to process.");
             return;
         }
 
-        // GUARD: Ensure at least one row is checked before starting the batch
         const selectedIndices = getSelectedRowIndices();
         if (selectedIndices.length === 0) {
-            const msg = "⚠️ [Cabal Warning] Batch run aborted: No rows are currently selected. Please check at least one row checkbox to begin processing.";
-            batchProcessor.logToUI(msg);
-            alert("Please select at least one row using the checkboxes before starting the batch process.");
+            batchProcessor.logToUI("⚠️ Batch run aborted: No rows selected.");
+            alert("Please select at least one active row using the checkboxes.");
             return;
         }
 
-        // Filter source dataset to only include checked rows based on global indices
         const filteredSourceDataset = sourceDataset.filter((_, idx) => selectedIndices.includes(idx));
-        console.log(`🐛 [Cabal Debug] Starting batch with ${filteredSourceDataset.length} checked rows out of ${sourceDataset.length} total.`);
-
         const fullHeadersScript = document.getElementById('full-headers-matrix');
         const fullHeaders = fullHeadersScript ? JSON.parse(fullHeadersScript.textContent) : [];
-        console.log("🐛 [Cabal Debug] Full Headers Matrix for Batch Processing:", fullHeaders);
 
-        const rowsToProcess = filteredSourceDataset.map((row, idx) => {
+        const rowsToProcess = filteredSourceDataset.map((row) => {
             if (Array.isArray(row)) {
                 let rowObj = {};
 
@@ -373,40 +406,36 @@ document.addEventListener('DOMContentLoaded', () => {
                     rowObj[cleanKey] = row[hIdx];
                 });
 
-                const mappedRow = {
-                    title: rowObj.title || row[0] || "",
-                    upc: rowObj.upc || row[1] || "",
-                    qty: rowObj.qty || row[2] || 1,
-                    retail: rowObj.retail || row[3] || 0.00,
-                    discounted_price: rowObj.discounted_price || (discountedColIndex !== -1 ? row[discountedColIndex] : null) || row[4] || 0.00,
-                    ...rowObj
+                console.log('rowsToProcess', {
+                    rowObj,
+                    row
+                });
+
+                // If row was sliced from DOM cells instead of full data, map by column header names or dynamic indices
+                return {
+                    title: row[0] || rowObj.title || "",
+                    upc: row[1] || rowObj.upc || (upcColIndex !== -1 ? row[upcColIndex] : null) || "",
+                    qty: parseInt(row[4] || rowObj.qty || (qtyColIndex !== -1 ? row[qtyColIndex] : null), 10) || 1,
+                    retail: parseFloat(row[2]) || rowObj.retail || rowObj.price || (retailColIndex !== -1 ? row[retailColIndex] : null) || 0.00,
+                    discounted_price: parseFloat(row[3]) || rowObj.discounted_price || rowObj.discount_price || (discountedColIndex !== -1 ? row[discountedColIndex] : null) || 0.00
                 };
-
-                if (idx < 3) {
-                    console.log(`🐛 [Cabal Debug] Row [${idx}] mapped for batch:`, mappedRow);
-                }
-
-                return mappedRow;
             }
-            return row;
+
+            // If it's already an object, map cleanly
+            return {
+                title: row.title || "",
+                upc: row.upc || row.barcode || "",
+                qty: parseInt(row.qty || row.quantity, 10) || 1,
+                retail: parseFloat(row.retail || row.price) || 0.00,
+                discounted_price: parseFloat(row.discounted_price || row.discount_price || row.cost) || 0.00
+            };
         });
 
-        console.log("🐛 [Cabal Debug] Total rows prepared for batch processing:", rowsToProcess.length);
+        console.log('rowsToProcess', rowsToProcess);
 
         await batchProcessor.startBatch(rowsToProcess);
     };
 
-    const batchTriggerBtn = document.getElementById('startBatchBtn');
-    if (batchTriggerBtn) {
-        batchTriggerBtn.addEventListener('click', () => {
-            window.runAutomatedBatch();
-        });
-    }
-
-    const batchStopBtn = document.getElementById('stopBatchBtn');
-    if (batchStopBtn) {
-        batchStopBtn.addEventListener('click', () => {
-            batchProcessor.stop();
-        });
-    }
+    document.getElementById('startBatchBtn')?.addEventListener('click', () => window.runAutomatedBatch());
+    document.getElementById('stopBatchBtn')?.addEventListener('click', () => batchProcessor.stop());
 });
