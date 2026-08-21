@@ -18,6 +18,11 @@
                     Nexus
                 </button>
             </li>
+            <li class="d-flex align-items-stretch">
+                <button class="nav-tab-btn d-flex align-items-center px-3 border-0 bg-transparent h-100 position-relative" data-target="tab-forge">
+                    Forge
+                </button>
+            </li>
 
             <li class="d-flex align-items-stretch">
                 <button class="nav-tab-btn d-flex align-items-center px-3 border-0 bg-transparent h-100 position-relative" data-target="tab-vanguard">
@@ -87,36 +92,43 @@
 </header>
 
 <main class="portal-viewport position-relative w-100" style="height: calc(100vh - 56px);">
-    <iframe 
-        id="tab-nexus" 
-        class="tab-panel active w-100 h-100 border-0" 
+    <iframe
+        id="tab-nexus"
+        class="tab-panel active w-100 h-100 border-0"
         src="{% url 'plugin:cabal:nexus' %}">
     </iframe>
 
-    <iframe 
-        id="tab-vanguard" 
-        class="tab-panel w-100 h-100 border-0" 
+    <iframe
+        id="tab-forge"
+        class="tab-panel w-100 h-100 border-0"
+        src="{% url 'plugin:cabal:forge' %}"
+        loading="lazy">
+    </iframe>
+
+    <iframe
+        id="tab-vanguard"
+        class="tab-panel w-100 h-100 border-0"
         src="{% url 'plugin:cabal:vanguard' %}"
         loading="lazy">
     </iframe>
 
-    <iframe 
+    <iframe
         id="tab-syncroth" 
-        class="tab-panel w-100 h-100 border-0" 
+        class="tab-panel w-100 h-100 border-0"
         src="{% url 'plugin:cabal:syncroth' %}"
         loading="lazy">
     </iframe>
 
-    <iframe 
+    <iframe
         id="tab-cerebro" 
-        class="tab-panel w-100 h-100 border-0" 
+        class="tab-panel w-100 h-100 border-0"
         src="{% url 'plugin:cabal:cerebro' %}"
         loading="lazy">
     </iframe>
 
-    <iframe 
+    <iframe
         id="tab-avisia" 
-        class="tab-panel w-100 h-100 border-0" 
+        class="tab-panel w-100 h-100 border-0"
         src="{% url 'plugin:cabal:avisia' %}"
         loading="lazy">
     </iframe>
@@ -124,10 +136,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<!-- Excel library unique to Nexus -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-
-<!-- Cabal Portal Logic -->
+<script src="{% static 'plugins/cabal/cabal/js/cabal/_helpers.js' %}"></script>
 <script src="{% static 'plugins/cabal/cabal/js/cabal/cabal.js' %}"></script>
 <script src="{% static 'plugins/cabal/cabal/js/cabal/style_sync.js' %}"></script>
 {% endblock %}
