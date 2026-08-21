@@ -30,13 +30,6 @@ function copyCSVToClipboard() {
 
 let updateTimeout;
 
-function getCSRFToken() {
-    const tokenInput = document.querySelector('[name=csrfmiddlewaretoken]');
-    if (tokenInput) return tokenInput.value;
-    const cookieMatch = document.cookie.match(/csrftoken=([\w-]+)/);
-    return cookieMatch ? cookieMatch[1] : "";
-}
-
 // Dynamic PDF Download URL Sync Function
 function updatePDFButtonLink() {
     const pdfBtn = document.getElementById("download-pdf-btn");
