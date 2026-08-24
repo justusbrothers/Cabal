@@ -80,6 +80,8 @@
 
         const comic = spectacleData?.comic_data || {};
 
+        console.log('buildInvenTreePayload:parseFloat(row.discounted_price || row["Discounted Price"] || comic.discounted_price || comic.item_cost || "")', parseFloat(row.discounted_price || row["Discounted Price"] || comic.discounted_price || comic.item_cost || ""));
+
         const payload = {
             metadata: {
                 publisher: comic.publisher || "Unknown Publisher",
@@ -93,18 +95,18 @@
                 matched_via: spectacleData?.message || "Direct API Match"
             },
             part: {
-                name: comic.title || row.title || "Unknown Title",
-                description: comic.description || (comic.issue ? `Issue #${comic.issue}` : ""),
-                IPN: row.ipn || comic.ipn_proposed || comic.pub_code || "COMIC-GENERIC",
-                barcode: row.upc || spectacleData?.scanned_barcode || comic.scanned_barcode || "",
-                category: comic.category || null,
-                keywords: `${comic.series || ''} ${comic.publisher || ''} ${comic.variant || ''}`.trim(),
-                link: comic.metron_url || comic.part_link || "",
+                name: comic.title || "",
+                description: comic.description || "",
+                IPN: comic.ipn_proposed || "",
+                barcode: comic.upc || "",
+                category: comic.category || "",
+                // keywords: `${comic.series || ''} ${comic.publisher || ''} ${comic.variant || ''}`.trim(),
+                link: comic.metron_url || "",
                 image_url: comic.image_url || ""
             },
             pricing: {
-                retail_price: parseFloat(row.retail || comic.price || 0.00),
-                discounted_price: parseFloat(row.discounted_price || row["Discounted Price"] || 0.00),
+                retail_price: parseFloat(row.retail || comic.floated_price || comic.price || comic.retail_price || 0.00),
+                discounted_price: parseFloat(row.discounted_price || row["Discounted Price"] || comic.discounted_price || comic.item_cost || 0.00),
                 listed_on_whatnot: comic.listed_on_whatnot || true
             },
             stock: {
@@ -122,28 +124,40 @@
         console.group(`🚀 [InvenTree Ingest] Starting part/stock creation (Dry Run: ${isDryRun})`);
         console.log(`📋 Ingest Payload:`, payload);
 
+        // Helper to check if a price is valid and non-zero
+        const isValidCost = (cost) => {
+            if (cost === undefined || cost === null || cost === "") return false;
+
+            const parsed = parseFloat(cost);
+
+            return !isNaN(parsed) && parsed > 0;
+        };
+
         if (isDryRun) {
             await sleep(150);
 
             const simulatedParameters = [
-                { template_name: 16, name: "Condition", value: payload.metadata.condition || "Near Mint" },
-                { template_name: 68, name: "Store Date", value: payload.metadata.store_date || "" },
-                { template_name: 64, name: "Barcode / UPC", value: payload.part.barcode || payload.metadata.upc },
-                { template_name: 11, name: "Listed on Whatnot", value: payload.pricing.listed_on_whatnot ?? true },
-                { template_name: 69, name: "Item Cost", value: payload.pricing.discounted_price || "" },
-            ].filter(p => p.value !== "" && p.value !== null);
+                { template_name: 16, name: "Condition", value: payload.metadata?.condition || "Near Mint" },
+                { template_name: 68, name: "Store Date", value: payload.metadata?.store_date || null },
+                { template_name: 64, name: "Barcode / UPC", value: payload.part?.barcode || payload.metadata?.upc || null },
+                { template_name: 11, name: "Listed on Whatnot", value: payload.pricing?.listed_on_whatnot ?? true },
+                { template_name: 69, name: "Item Cost", value: isValidCost(payload.pricing?.discounted_price) ? payload.pricing.discounted_price : null },
+            ].filter(p => p.value !== "" && p.value !== null && p.value !== undefined);
 
             if (logger) {
                 logger(`🧪 [DRY RUN SIMULATION] Would create part with name: "${payload.part.name}", IPN: "${payload.part.IPN}"`);
                 logger(`🧪 [DRY RUN SIMULATION] Would download and attach image from: "${payload.part.image_url || 'None'}"`);
                 logger(`🧪 [DRY RUN SIMULATION] Would set sale price: $${payload.pricing.retail_price} (Qty: ${payload.stock.quantity})`);
-                logger(`🧪 [DRY RUN SIMULATION] Would set item cost: $${payload.pricing.discounted_price}`);
+                if (isValidCost(payload.pricing?.discounted_price)) {
+                    logger(`🧪 [DRY RUN SIMULATION] Would set item cost: $${payload.pricing.discounted_price}`);
+                }
                 logger(`🧪 [DRY RUN SIMULATION] Would assign stock location ID: ${payload.stock.location}`);
-                logger(`🧪 [DRY RUN SIMULATION] Would write ${simulatedParameters.length} part parameters:\n${JSON.stringify(simulatedParameters, null, 2)}`);
+                logger(`🧪 [DRY RUN SIMULATION] Would write ${simulatedParameters.length} part parameters: ${JSON.stringify(simulatedParameters, null, 2)}`);
             }
 
             console.log(`🧪 [Dry Run] Simulation completed successfully.`);
             console.groupEnd();
+
             return {
                 success: true,
                 data: {
@@ -228,14 +242,14 @@
             }
 
             const parametersToCreate = [
-                { template_name: 16, name: "Condition", value: payload.metadata.condition || "Near Mint" },
-                { template_name: 68, name: "Store Date", value: payload.metadata.store_date || "" },
-                { template_name: 64, name: "Barcode / UPC", value: payload.part.barcode || payload.metadata.upc },
-                { template_name: 11, name: "Listed on Whatnot", value: payload.pricing.listed_on_whatnot ?? true },
-                { template_name: 69, name: "Item Cost", value: payload.pricing.discounted_price || "" },
+                { template_name: 16, name: "Condition", value: payload.metadata?.condition || "Near Mint" },
+                { template_name: 68, name: "Store Date", value: payload.metadata?.store_date || "" },
+                { template_name: 64, name: "Barcode / UPC", value: payload.part?.barcode || payload.metadata?.upc },
+                { template_name: 11, name: "Listed on Whatnot", value: payload.pricing?.listed_on_whatnot ?? true },
+                { template_name: 69, name: "Item Cost", value: isValidCost(payload.pricing?.discounted_price) ? payload.pricing.discounted_price : "" },
             ];
 
-            const validParameters = parametersToCreate.filter(param => param.value !== "" && param.value !== null);
+            const validParameters = parametersToCreate.filter(param => param.value !== "" && param.value !== null && param.value !== undefined);
             console.log(`📊 [Parameters] Submitting ${validParameters.length} parameters for part ${partId}:`, validParameters);
 
             const parameterPromises = validParameters.map(param => {
@@ -270,12 +284,12 @@
                         part: partId,
                         quantity: payload.stock.quantity,
                         location: location_id,
-                        notes: `Ingested via Nexus batch. Condition: ${payload.metadata.condition || "NM"}`
+                        notes: `Ingested via Nexus batch. Condition: ${payload.metadata?.condition || "NM"}`
                     })
                 });
                 console.log(`✅ [Stock] Stock entry created.`);
             } else {
-                console.warn(`⚠️ [Stock Warning] No stock location assigned for pub code: ${payload.metadata.publisher_code}`);
+                console.warn(`⚠️ [Stock Warning] No stock location assigned for pub code: ${payload.metadata?.publisher_code}`);
             }
 
             console.log(`🎉 [InvenTree Ingest] Part creation flow completed successfully!`);
