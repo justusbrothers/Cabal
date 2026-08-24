@@ -71,8 +71,18 @@
 
                     <textarea id="ipn_list" name="ipn_list" class="form-control font-monospace" rows="4" placeholder="Enter IPNs or SKUs, separated by commas or newlines...">{{ ipn_list }}</textarea>
 
+                    <div class="form-text text-muted my-0">List individual item IPNs to inspect for incentive ratio variants and single pulls.</div>
+                </div>
+
+                <!-- Sub Box Pulls -->
+                <div class="mb-4">
+                    <label for="sub_box_pulls" class="form-label fw-bold">Sub Box Pulls</label>
+
+                    <textarea id="sub_box_pulls" name="sub_box_pulls" class="form-control font-monospace" rows="3" placeholder="Enter customer sub box pull requests...">{{ sub_box_pulls }}</textarea>
+
                     <div class="d-flex justify-content-between align-items-center mt-2">
-                        <div class="form-text text-muted my-0">List individual item IPNs to inspect for incentive ratio variants and single pulls.</div>
+                        <div class="form-text text-muted">Subscriber Books</div>
+
                         <div>
                             <button type="button" id="btn-clear-packs" class="btn btn-outline-secondary btn-sm mr-3">
                                 <i class="bi bi-box-seam"></i> Clear Recommended Packs
@@ -148,12 +158,6 @@
                     <label for="packs" class="form-label fw-bold">Manual Pack Definition / Custom List</label>
                     <textarea id="packs" name="packs" class="form-control font-monospace" rows="3" placeholder="Enter Pack SKUs or definitions...">{{ packs }}</textarea>
                     <div class="form-text text-muted">List multi-issue pack SKUs to auto-expand cover breakdowns and assembly checklists.</div>
-                </div>
-
-                <!-- Sub Box Pulls -->
-                <div class="mb-4">
-                    <label for="sub_box_pulls" class="form-label fw-bold">Sub Box Pulls</label>
-                    <textarea id="sub_box_pulls" name="sub_box_pulls" class="form-control font-monospace" rows="3" placeholder="Enter customer sub box pull requests...">{{ sub_box_pulls }}</textarea>
                 </div>
 
                 <!-- Actions -->
