@@ -1,6 +1,6 @@
 // /plugins/Cabal/cabal/static/cabal/js/forge/forge.js
 
-// document.addEventListener('DOMContentLoaded', async function() {
+document.addEventListener('DOMContentLoaded', async function() {
     // Safely resolve Cabal whether running standalone or inside an iframe
     const Cabal = window.Cabal || window.parent?.Cabal || window.top?.Cabal;
 
@@ -9,6 +9,23 @@
     } else {
         console.warn("Cabal object not found on parent or local scope.");
     }
+
+    // Helper to safely access Cabal shared config from inside an iframe
+    function getCabalConfig() {
+        return window.CabalConfig || (window.parent && window.parent.CabalConfig) || {};
+    }
+
+    // Example usage inside your sub-app scripts:
+    const config = getCabalConfig();
+    const publishers = config.PUBLISHER_REGISTRY || [];
+    const categories = config.CATEGORIES_LIST || [];
+    const locations = config.LOCATIONS_LIST || [];
+    const publisherupcprefixes = config.PUBLISHER_UPC_PREFIXES || [];
+
+    console.log("Loaded Publishers in Iframe:", publishers.length);
+    console.log('publishers', publishers);
+    console.log('categories', categories);
+    console.log('locations', locations);
 
     const form = document.getElementById('forge-form');
     const submitBtn = document.getElementById('forge-submit-btn');
@@ -62,34 +79,43 @@
 
     // 1. Populate Dropdowns using _config.js
     function initializeConfigData() {
-        if (typeof PUBLISHER_REGISTRY !== 'undefined') {
+        if (typeof publishers !== 'undefined') {
             publisherSelect.innerHTML = '<option value="">Select Publisher...</option>';
-            PUBLISHER_REGISTRY.forEach(pub => {
+
+            publishers.forEach(pub => {
                 const opt = document.createElement('option');
+
                 opt.value = pub.code;
                 opt.textContent = `${pub.name} (${pub.code})`;
                 opt.dataset.catId = pub.catId;
                 opt.dataset.locId = pub.locId;
+
                 publisherSelect.appendChild(opt);
             });
         }
 
-        if (typeof CATEGORIES_LIST !== 'undefined') {
+        if (typeof categories !== 'undefined') {
             categorySelect.innerHTML = '<option value="">Select Category...</option>';
-            CATEGORIES_LIST.forEach(cat => {
+
+            categories.forEach(cat => {
                 const opt = document.createElement('option');
+
                 opt.value = cat.id;
                 opt.textContent = `${cat.name} (ID: ${cat.id})`;
+
                 categorySelect.appendChild(opt);
             });
         }
 
-        if (typeof LOCATIONS_LIST !== 'undefined') {
+        if (typeof locations !== 'undefined') {
             locationSelect.innerHTML = '<option value="">Select Location...</option>';
-            LOCATIONS_LIST.forEach(loc => {
+
+            locations.forEach(loc => {
                 const opt = document.createElement('option');
+
                 opt.value = loc.id;
                 opt.textContent = `${loc.name}`;
+
                 locationSelect.appendChild(opt);
             });
         }
@@ -112,14 +138,19 @@
     // 3. Auto-detect publisher by UPC prefix
     upcInput.addEventListener('input', function() {
         const upcVal = upcInput.value.trim();
-        if (upcVal.length >= 5 && typeof PUBLISHER_UPC_PREFIXES !== 'undefined') {
+
+        if (upcVal.length >= 5 && typeof publisherupcprefixes !== 'undefined') {
             for (let len = 6; len >= 3; len--) {
                 const prefix = upcVal.substring(0, len);
-                if (PUBLISHER_UPC_PREFIXES[prefix]) {
-                    const matchedCode = PUBLISHER_UPC_PREFIXES[prefix];
+
+                if (publisherupcprefixes[prefix]) {
+                    const matchedCode = publisherupcprefixes[prefix];
+
                     publisherSelect.value = matchedCode;
                     publisherSelect.dispatchEvent(new Event('change'));
+
                     logOutput(`Detected publisher code '${matchedCode}' via UPC prefix '${prefix}'`);
+
                     break;
                 }
             }
@@ -189,4 +220,4 @@
             submitBtn.innerHTML = '<i class="fas fa-hammer me-2"></i>Forge into Inventory';
         }
     });
-// });
+});
