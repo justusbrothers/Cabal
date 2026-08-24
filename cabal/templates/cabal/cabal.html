@@ -18,6 +18,7 @@
                     Nexus
                 </button>
             </li>
+
             <li class="d-flex align-items-stretch">
                 <button class="nav-tab-btn d-flex align-items-center px-3 border-0 bg-transparent h-100 position-relative" data-target="tab-forge">
                     Forge
@@ -45,6 +46,12 @@
             <li class="d-flex align-items-stretch">
                 <button class="nav-tab-btn d-flex align-items-center px-3 border-0 bg-transparent h-100 position-relative" data-target="tab-avisia">
                     Avisia
+                </button>
+            </li>
+
+            <li class="d-flex align-items-stretch">
+                <button class="nav-tab-btn d-flex align-items-center px-3 border-0 bg-transparent h-100 position-relative" data-target="tab-dewey">
+                    Dewey
                 </button>
             </li>
         </ul>
@@ -132,10 +139,18 @@
         src="{% url 'plugin:cabal:avisia' %}"
         loading="lazy">
     </iframe>
+
+    <iframe
+        id="tab-dewey" 
+        class="tab-panel w-100 h-100 border-0"
+        src="{% url 'plugin:cabal:dewey' %}"
+        loading="lazy">
+    </iframe>
 </main>
 {% endblock %}
 
 {% block extra_js %}
+<script src="{% static 'plugins/cabal/cabal/js/cabal/_config.js' %}"></script>
 <script src="{% static 'plugins/cabal/cabal/js/cabal/_helpers.js' %}"></script>
 <script src="{% static 'plugins/cabal/cabal/js/cabal/cabal.js' %}"></script>
 <script src="{% static 'plugins/cabal/cabal/js/cabal/style_sync.js' %}"></script>
