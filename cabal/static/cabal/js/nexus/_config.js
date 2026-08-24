@@ -1,5 +1,7 @@
 // /plugins/Cabal/cabal/static/cabal/js/nexus/_config.js
 
+window.isPenguinFile = window.isPenguinFile === true || window.isPenguin === true;
+
 // Read variables from global window context, or default to -1 if unassigned
 window.upcColIndex = typeof window.upcColIndex === 'number' ? window.upcColIndex : -1;
 window.retailColIndex = typeof window.retailColIndex === 'number' ? window.retailColIndex : -1;

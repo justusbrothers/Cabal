@@ -1,17 +1,8 @@
 // /plugins/Cabal/cabal/static/cabal/js/nexus/_batch_processor.js
 
-// Safely resolve Cabal whether running standalone or inside an iframe
-const Cabal = window.Cabal || window.parent?.Cabal || window.top?.Cabal;
-
-if (Cabal) {
-    console.log("Successfully accessed parent's Cabal instance!", Cabal);
-} else {
-    console.warn("Cabal object not found on parent or local scope.");
-}
-
 class InvenTreeBatchProcessor {
     constructor(options = {}) {
-        this.delayMs = options.delayMs || 3000; 
+        this.delayMs = options.delayMs || 1200; 
         this.isProcessing = false;
         this.shouldStop = false;
         
@@ -24,7 +15,8 @@ class InvenTreeBatchProcessor {
 
     async startBatch(rows) {
         console.group(`📦 [Nexus Batch Processor] Starting Batch`);
-        console.log('startBatch', rows)
+        // console.log('startBatch', rows)
+        // console.log('startBatch:window.isPenguinFile', window.isPenguinFile)
 
         this.isProcessing = true;
         this.shouldStop = false;
@@ -72,10 +64,10 @@ class InvenTreeBatchProcessor {
             
             const rawRowString = typeof row === 'object' ? JSON.stringify(row) : String(row);
             this.logToUI(`Evaluating Row Data: ${rawRowString}`);
-            console.log(`🔍 [Row ${rowId} Raw Data Dump]:`, row);
+            // console.log(`🔍 [Row ${rowId} Raw Data Dump]:`, row);
 
             try {
-                if (this.dryRun) { this.logToUI(`🔍 [DEBUG] Sending Metron lookup query -> Barcode: "${upc}", Title: "${title}"`); }
+                // if (this.dryRun) { this.logToUI(`🔍 [DEBUG] Sending Metron lookup query -> Barcode: "${upc}", Title: "${title}"`); }
 
                 const lookupResult = await Cabal.performSpectacleLookup(upc, title);
 
@@ -88,7 +80,7 @@ class InvenTreeBatchProcessor {
                     continue;
                 }
 
-                if (this.dryRun) { this.logToUI(`✅ [DEBUG] Metron lookup successful. Raw comic data:\n${JSON.stringify(lookupResult.comic_data, null, 2)}`); }
+                // if (this.dryRun) { this.logToUI(`✅ [DEBUG] Metron lookup successful. Raw comic data:\n${JSON.stringify(lookupResult.comic_data, null, 2)}`); }
 
                 const resolvedComic = lookupResult.comic_data || {};
                 const resolvedTitle = String(resolvedComic.title || title || "").trim();
@@ -144,24 +136,30 @@ class InvenTreeBatchProcessor {
                     }
                 }
 
-                if (this.dryRun) { this.logToUI(`📦 [DEBUG] Constructed InvenTree payload:\n${JSON.stringify(payload, null, 2)}`); }
+                // if (this.dryRun) { this.logToUI(`📦 [DEBUG] Constructed InvenTree payload:\n${JSON.stringify(payload, null, 2)}`); }
 
                 const result = await Cabal.createInvenTreePartAndStock(payload, this.dryRun, this.logToUI);
 
                 if (result && result.success) {
-                    if (this.dryRun) { this.logToUI(`🎉 [DEBUG] InvenTree write successful response:\n${JSON.stringify(result, null, 2)}`); }
+                    if (this.dryRun) {
+                        // this.logToUI(`🎉 [DEBUG] InvenTree write successful response:\n${JSON.stringify(result, null, 2)}`);
+                        this.logToUI(`🎉 [DEBUG] InvenTree write successful`);
+                    }
+
                     this.recordSuccess(rowId, title, upc, payload, result.data?.part?.pk);
                 } else {
                     if (this.dryRun) { this.logToUI(`❌ [DEBUG] InvenTree write failed response:\n${JSON.stringify(result, null, 2)}`); }
+
                     this.recordFailure(rowId, row, `InvenTree API Error: ${result?.message || 'Failed to create part'}`);
                 }
 
             } catch (err) {
                 if (this.dryRun) { this.logToUI(`💥 [DEBUG] Unexpected Exception caught at Row ${rowId}:\nStack: ${err.stack || err.message}`); }
+
                 this.recordFailure(rowId, row, `Unexpected Script Error: ${err.message}`);
             }
 
-            console.log('Cabal.sleep', Cabal.sleep);
+            // console.log('Cabal.sleep', Cabal.sleep);
 
             await Cabal.sleep(this.delayMs);
             this.updateProgress(index + 1, loop_length, progressBar);

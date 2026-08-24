@@ -80,7 +80,7 @@ function handleScanClick(e) {
     scannerModal.show();
     console.log(`🚀 [Scan Click] Modal displayed. Dispatching performSpectacleLookup for barcode: "${extractedBarcode}"`);
 
-    window.Cabal.performSpectacleLookup(extractedBarcode, rowData[0] || "", 
+    Cabal.performSpectacleLookup(extractedBarcode, rowData[0] || "", 
         (data) => {
             console.log(`🎉 [Scan Click Success Callback] Lookup succeeded with data:`, data);
             loadModalWithData(data, rowData, extractedBarcode);

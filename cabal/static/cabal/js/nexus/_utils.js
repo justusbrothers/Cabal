@@ -1,5 +1,13 @@
 // /plugins/Cabal/cabal/static/cabal/js/nexus/_utils.js
 
+const Cabal = window.Cabal || window.parent?.Cabal || window.top?.Cabal;
+
+// if (Cabal) {
+//     console.log("Successfully accessed parent's Cabal instance!", Cabal);
+// } else {
+//     console.warn("Cabal object not found on parent or local scope.");
+// }
+
 function showTemporaryCheckmark(buttonElem) {
     const originalText = buttonElem.innerHTML;
     buttonElem.innerHTML = "✓";

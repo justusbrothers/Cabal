@@ -17,10 +17,13 @@ function hydratePreviewRowsFromDOM() {
     // 1. Hydrate previewRows if empty
     if (window.previewRows.length === 0) {
         const previewScript = document.getElementById('preview-data-matrix');
+
         if (previewScript) {
             try {
                 window.previewRows = JSON.parse(previewScript.textContent);
-                console.log("🐛 [Cabal Debug] Hydrated previewRows from JSON script:", window.previewRows.length, "rows");
+
+                // console.log("🐛 [Cabal Debug] Hydrated `previewRows` from JSON script:", window.previewRows.length, "rows");
+                // console.log("🐛 [Cabal Debug] Parsed `previewRows` from JSON script:", window.previewRows);
             } catch (e) {
                 console.error("🐛 [Cabal Debug] Failed to parse preview-data-matrix JSON:", e);
             }
@@ -30,10 +33,13 @@ function hydratePreviewRowsFromDOM() {
     // 2. Hydrate fullRows independently if empty
     if (window.fullRows.length === 0) {
         const fullScript = document.getElementById('full-data-matrix');
+
         if (fullScript) {
             try {
                 window.fullRows = JSON.parse(fullScript.textContent);
-                console.log("🐛 [Cabal Debug] Hydrated fullRows from JSON script:", window.fullRows.length, "rows");
+
+                // console.log("🐛 [Cabal Debug] Hydrated `fullRows` from JSON script:", window.fullRows.length, "rows");
+                // console.log("🐛 [Cabal Debug] Parsed `fullRows` from JSON script:", window.fullRows);
             } catch (e) {
                 console.error("🐛 [Cabal Debug] Failed to parse full-data-matrix JSON:", e);
             }
@@ -397,6 +403,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const fullHeadersScript = document.getElementById('full-headers-matrix');
         const fullHeaders = fullHeadersScript ? JSON.parse(fullHeadersScript.textContent) : [];
 
+        // console.log('runAutomatedBatch:window.isPenguinFile', window.isPenguinFile);
+
         const rowsToProcess = filteredSourceDataset.map((row) => {
             if (Array.isArray(row)) {
                 let rowObj = {};
@@ -406,32 +414,46 @@ document.addEventListener('DOMContentLoaded', () => {
                     rowObj[cleanKey] = row[hIdx];
                 });
 
-                console.log('rowsToProcess', {
-                    rowObj,
-                    row
-                });
+                // console.log('rowsToProcess:inner', {
+                //     rowObj,
+                //     row
+                // });
 
-                // If row was sliced from DOM cells instead of full data, map by column header names or dynamic indices
-                return {
-                    title: row[0] || rowObj.title || "",
-                    upc: row[1] || rowObj.upc || (upcColIndex !== -1 ? row[upcColIndex] : null) || "",
-                    qty: parseInt(row[4] || rowObj.qty || (qtyColIndex !== -1 ? row[qtyColIndex] : null), 10) || 1,
-                    retail: parseFloat(row[2]) || rowObj.retail || rowObj.price || (retailColIndex !== -1 ? row[retailColIndex] : null) || 0.00,
-                    discounted_price: parseFloat(row[3]) || rowObj.discounted_price || rowObj.discount_price || (discountedColIndex !== -1 ? row[discountedColIndex] : null) || 0.00
-                };
+                if (window.isPenguinFile) {
+                    return {
+                        qty: parseInt(row[4] || rowObj.qty || (qtyColIndex !== -1 ? row[qtyColIndex] : null), 10) || 1,
+                        title: row[0] || rowObj.title || "",
+                        upc: row[1] || rowObj.upc || (upcColIndex !== -1 ? row[upcColIndex] : null) || "",
+                    };
+                } else {
+                    return {
+                        discounted_price: parseFloat(row[3]) || rowObj.discounted_price || rowObj.discount_price || (discountedColIndex !== -1 ? row[discountedColIndex] : null) || 0.00,
+                        qty: parseInt(row[4] || rowObj.qty || (qtyColIndex !== -1 ? row[qtyColIndex] : null), 10) || 1,
+                        retail: parseFloat(row[2]) || rowObj.retail || rowObj.price || (retailColIndex !== -1 ? row[retailColIndex] : null) || 0.00,
+                        title: row[0] || rowObj.title || "",
+                        upc: row[1] || rowObj.upc || (upcColIndex !== -1 ? row[upcColIndex] : null) || "",
+                    };
+                }
             }
 
-            // If it's already an object, map cleanly
-            return {
-                title: row.title || "",
-                upc: row.upc || row.barcode || "",
-                qty: parseInt(row.qty || row.quantity, 10) || 1,
-                retail: parseFloat(row.retail || row.price) || 0.00,
-                discounted_price: parseFloat(row.discounted_price || row.discount_price || row.cost) || 0.00
-            };
+            if (window.isPenguinFile) {
+                return {
+                    qty: parseInt(row.qty || row.quantity, 10) || 1,
+                    title: row.title || "",
+                    upc: row.upc || row.barcode || "",
+                };
+            } else {
+                return {
+                    discounted_price: parseFloat(row.discounted_price || row.discount_price || row.cost) || 0.00,
+                    qty: parseInt(row.qty || row.quantity, 10) || 1,
+                    retail: parseFloat(row.retail || row.price) || 0.00,
+                    title: row.title || "",
+                    upc: row.upc || row.barcode || "",
+                };
+            }
         });
 
-        console.log('rowsToProcess', rowsToProcess);
+        // console.log('runAutomatedBatch:rowsToProcess:complete', rowsToProcess);
 
         await batchProcessor.startBatch(rowsToProcess);
     };

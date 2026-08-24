@@ -42,15 +42,17 @@ class Nexus(View):
 
         if csv_file:
             try:
-                logger.info(
-                    f"[Nexus] Received file upload: {getattr(csv_file, 'name', 'unknown')} (Size: {csv_file.size} bytes)"
-                )
+                # logger.info(
+                #     f"[Nexus] Received file upload: {getattr(csv_file, 'name', 'unknown')} (Size: {csv_file.size} bytes)"
+                # )
 
                 df, auto_suffix, is_penguin = self.process_csv_file(csv_file)
                 context["total_rows"] = len(df)
-                logger.debug(
-                    f"[Nexus] Post-processing complete. Final DataFrame rows: {len(df)}, Vendor Type: {'Penguin' if is_penguin else 'Lunar'}"
-                )
+                context["is_penguin"] = is_penguin
+
+                # logger.debug(
+                #     f"[Nexus] Post-processing complete. Final DataFrame rows: {len(df)}, Vendor Type: {'Penguin' if is_penguin else 'Lunar'}"
+                # )
 
                 # --- Filename Date Suffix Selector ---
                 raw_suffix = request.POST.get("file_suffix", "").strip()
@@ -60,7 +62,7 @@ class Nexus(View):
                     clean_suffix = raw_suffix.replace("/", "").replace("\\", "")
 
                 request.session["file_suffix"] = clean_suffix
-                logger.debug(f"[Nexus] File suffix configured as: '{clean_suffix}'")
+                # logger.debug(f"[Nexus] File suffix configured as: '{clean_suffix}'")
 
                 # Store complete structured data frame into session for multi-sheet download & batch creation matching
                 request.session["lunar_df"] = df.to_json(orient="split")
@@ -68,8 +70,6 @@ class Nexus(View):
 
                 # --- Build Full Data Block for Client-Side UI ---
                 ui_display_df = df.copy()
-                # if "Discounted Price" in ui_display_df.columns:
-                #     ui_display_df = ui_display_df.drop(columns=["Discounted Price"])
 
                 # --- ALWAYS LOOK FOR UPC BECAUSE PENGUIN DATA WAS NORMALIZED TO UPC ---
                 upc_col_index = -1
@@ -108,9 +108,9 @@ class Nexus(View):
                 if missing:
                     import_message += f" Found {len(missing)} missing identifiers."
                 context["import_message"] = import_message
-                logger.info(
-                    f"[Nexus] Successfully rendered page context. {import_message}"
-                )
+                # logger.info(
+                #     f"[Nexus] Successfully rendered page context. {import_message}"
+                # )
 
             except Exception as e:
                 logger.exception(
@@ -120,6 +120,44 @@ class Nexus(View):
 
         return render(request, self.template_name, context)
 
+    def _extract_date_suffix(self, df, date_col, is_penguin=False):
+        """Helper to extract and format auto date suffix from the specified date column."""
+        if date_col not in df.columns:
+            return ""
+
+        valid_dates = df[date_col].dropna().astype(str).str.strip()
+        valid_dates = valid_dates[valid_dates != ""]
+        if valid_dates.empty:
+            return ""
+
+        most_frequent_date = valid_dates.mode().iloc[0]
+
+        if is_penguin:
+            date_match = re.match(r"(\d{4})-(\d{2})-(\d{2})", most_frequent_date)
+            if date_match:
+                return date_match.group(2) + date_match.group(3)
+        else:
+            try:
+                parsed_date = pd.to_datetime(most_frequent_date, errors="coerce")
+                if not pd.isna(parsed_date):
+                    return parsed_date.strftime("%m%d")
+            except Exception:
+                pass
+        return ""
+
+    def _clean_numeric_columns(self, df, columns):
+        """Helper to clean currency symbols and cast columns to numeric types safely."""
+        for num_col in columns:
+            if num_col in df.columns:
+                if df[num_col].dtype == object:
+                    df[num_col] = (
+                        df[num_col].astype(str).str.replace(r"[$,]", "", regex=True)
+                    )
+                df[num_col] = pd.to_numeric(df[num_col], errors="coerce").fillna(
+                    0.0 if num_col != "Qty" else 0
+                )
+        return df
+
     def process_csv_file(self, csv_file):
         """Sniffs file structure to process, merge, and clean layout matrices matching vendor specifications.
         Also gracefully handles re-uploaded exported Errored CSV reports.
@@ -127,9 +165,9 @@ class Nexus(View):
         file_content = csv_file.read().decode("utf-8-sig")
         lines = file_content.splitlines()
 
-        logger.debug(
-            f"[Nexus CSV Parser] File read complete. Total raw lines: {len(lines)}"
-        )
+        # logger.debug(
+        #     f"[Nexus CSV Parser] File read complete. Total raw lines: {len(lines)}"
+        # )
 
         # Pre-read temporary DataFrame to check if this is a re-uploaded Errored/Report CSV
         try:
@@ -144,11 +182,11 @@ class Nexus(View):
                 ]
                 if c in temp_df.columns
             ]
+
             if report_meta_cols:
                 logger.info(
                     f"[Nexus CSV Parser] Detected re-uploaded report/errored CSV containing columns: {report_meta_cols}. Stripping metadata for re-processing."
                 )
-                # Drop metadata columns from the raw lines if possible, or reload via pandas after initial read
         except Exception:
             pass
 
@@ -157,9 +195,9 @@ class Nexus(View):
         is_penguin = (
             "isbn" in first_line or "carton #" in first_line or "on sale" in first_line
         )
-        logger.debug(
-            f"[Nexus CSV Parser] Sniffed layout -> is_penguin: {is_penguin}. First line sample: {first_line[:120]}"
-        )
+        # logger.debug(
+        #     f"[Nexus CSV Parser] Sniffed layout -> is_penguin: {is_penguin}. First line sample: {first_line[:120]}"
+        # )
 
         data_lines = []
         header_found = False
@@ -179,7 +217,6 @@ class Nexus(View):
                     header_found = True
                     data_lines.append(line)
                     continue
-                # Fallback support for re-uploaded CSVs where headers might include Code or original distributor column names
                 elif "Code," in stripped or "ISBN," in stripped or "Title," in stripped:
                     header_found = True
                     data_lines.append(line)
@@ -203,16 +240,17 @@ class Nexus(View):
             if c in df.columns or c.lower() in [x.lower() for x in df.columns]
         ]
         if drop_report_cols:
-            # Drop matching columns case-insensitively
             actual_drops = [
                 col
                 for col in df.columns
                 if col.lower() in [d.lower() for d in drop_report_cols]
             ]
+
             df = df.drop(columns=actual_drops)
-            logger.debug(
-                f"[Nexus CSV Parser] Dropped report metadata columns: {actual_drops}"
-            )
+
+            # logger.debug(
+            #     f"[Nexus CSV Parser] Dropped report metadata columns: {actual_drops}"
+            # )
 
         # -----------------------------------------------------------------
         # NORMALIZE COLUMN NAMES & CLEAN CURRENCY/NUMERICS FIRST
@@ -221,6 +259,7 @@ class Nexus(View):
         col_mapping = {}
         for col in df.columns:
             lower_col = col.lower()
+
             if lower_col in ["code", "item code", "sku"]:
                 col_mapping[col] = "Code"
             elif lower_col in ["title", "description", "name"]:
@@ -241,44 +280,35 @@ class Nexus(View):
 
         if col_mapping:
             df = df.rename(columns=col_mapping)
-            logger.debug(
-                f"[Nexus CSV Parser] Normalized columns using mapping: {col_mapping}"
-            )
+
+            # logger.debug(
+            #     f"[Nexus CSV Parser] Normalized columns using mapping: {col_mapping}"
+            # )
 
         if is_penguin:
             df = df.rename(columns={"ISBN": "UPC", "Quantity": "Qty"})
 
+            # logger.debug(
+            #     f"[Nexus CSV Parser] Normalized columns using mapping DUE TO Penguin: {df}"
+            # )
+
         # Clean currency symbols and force numeric conversions BEFORE grouping
-        for num_col in ["Qty", "Retail", "Discounted Price"]:
-            if num_col in df.columns:
-                if df[num_col].dtype == object:
-                    df[num_col] = (
-                        df[num_col].astype(str).str.replace(r"[$,]", "", regex=True)
-                    )
-                df[num_col] = pd.to_numeric(df[num_col], errors="coerce").fillna(
-                    0.0 if num_col != "Qty" else 0
-                )
+        df = self._clean_numeric_columns(df, ["Qty", "Retail", "Discounted Price"])
 
         # -----------------------------------------------------------------
         # GLOBAL SANITIZER INJECTION
         # -----------------------------------------------------------------
         text_cols = ["Title", "Description", "Name", "Category", "Publisher"]
+
         for col in text_cols:
             if col in df.columns:
                 df[col] = df[col].astype(str).apply(clean_text)
 
+        # logger.debug(f"[Nexus CSV Parser] col in text_cols = {df}")
+
         auto_suffix = ""
         if is_penguin:
-            if "On Sale" in df.columns:
-                valid_dates = df["On Sale"].dropna().astype(str).str.strip()
-                valid_dates = valid_dates[valid_dates != ""]
-                if not valid_dates.empty:
-                    most_frequent_date = valid_dates.mode().iloc[0]
-                    date_match = re.match(
-                        r"(\d{4})-(\d{2})-(\d{2})", most_frequent_date
-                    )
-                    if date_match:
-                        auto_suffix = date_match.group(2) + date_match.group(3)
+            auto_suffix = self._extract_date_suffix(df, "On Sale", is_penguin=True)
 
             agg_dict = {"Qty": "sum"}
             for col in df.columns:
@@ -286,6 +316,7 @@ class Nexus(View):
                     agg_dict[col] = "first"
 
             grouped = df.groupby("UPC", as_index=False).agg(agg_dict)
+
             penguin_columns = ["Title", "UPC", "Qty"]
 
             for col in penguin_columns:
@@ -294,21 +325,17 @@ class Nexus(View):
 
             grouped = grouped.reindex(columns=penguin_columns)
 
+            # Force both retail and discounted_price to be strictly blank strings for Penguin
+            # grouped["Retail"] = ""
+            # grouped["Discounted Price"] = ""
+
+            # logger.debug(f"[Nexus CSV Parser] Penguin Grouped Cols: {grouped}")
+
         else:
             # Traditional Lunar / Re-uploaded Report Management Branch
-            if "In-Store Date" in df.columns:
-                valid_dates = df["In-Store Date"].dropna().astype(str).str.strip()
-                valid_dates = valid_dates[valid_dates != ""]
-                if not valid_dates.empty:
-                    most_frequent_date = valid_dates.mode().iloc[0]
-                    try:
-                        parsed_date = pd.to_datetime(
-                            most_frequent_date, errors="coerce"
-                        )
-                        if not pd.isna(parsed_date):
-                            auto_suffix = parsed_date.strftime("%m%d")
-                    except Exception:
-                        pass
+            auto_suffix = self._extract_date_suffix(
+                df, "In-Store Date", is_penguin=False
+            )
 
             # Determine dynamic grouping key
             group_key = (
@@ -316,12 +343,11 @@ class Nexus(View):
                 if "Code" in df.columns
                 else ("UPC" if "UPC" in df.columns else "Title")
             )
-            logger.debug(f"[Nexus CSV Parser] Using grouping key: {group_key}")
+            # logger.debug(f"[Nexus CSV Parser] Using grouping key: {group_key}")
 
             agg_dict = {"Qty": "sum"}
             for col in df.columns:
                 if col not in ["Qty", group_key]:
-                    # Use max for prices/numeric if multi-row conflict occurs, otherwise first
                     if col in ["Retail", "Discounted Price"]:
                         agg_dict[col] = "max"
                     else:
@@ -374,6 +400,9 @@ class Nexus(View):
                     grouped[col] = ""
 
             grouped = grouped.reindex(columns=lunar_columns)
+
+        # logger.debug(f"[Nexus CSV Parser] Completed initial parse [grouped.columns]: {grouped.columns}")
+        # logger.debug(f"[Nexus CSV Parser] Completed initial parse [auto_suffix]: {auto_suffix}")
 
         if "Title" in grouped.columns:
             grouped["Title"] = grouped["Title"].astype(str).apply(clean_text)
@@ -534,8 +563,8 @@ class AttachPartImageView(APIView):
         part_id = request.data.get("part_id")
         image_url = request.data.get("image_url")
 
-        logger.debug(f"[Nexus:AttachPartImageView] part_id: '{part_id}'")
-        logger.debug(f"[Nexus:AttachPartImageView] image_url: '{image_url}'")
+        # logger.debug(f"[Nexus:AttachPartImageView] part_id: '{part_id}'")
+        # logger.debug(f"[Nexus:AttachPartImageView] image_url: '{image_url}'")
 
         if not part_id or not image_url:
             return JsonResponse(
