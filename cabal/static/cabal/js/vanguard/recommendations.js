@@ -104,7 +104,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             html += `
-                <label class="list-group-item bg-dark d-flex gap-3 align-items-center py-3" style="cursor: pointer;">
+                <label class="list-group-item d-flex gap-3 align-items-center py-3" style="cursor: pointer;">
                     <input type="checkbox" 
                            class="form-check-input flex-shrink-0 recommendation-checkbox pack-checkbox fs-4" 
                            id="pack_${counter}" 
@@ -114,7 +114,7 @@ document.addEventListener('DOMContentLoaded', function() {
                            
                     <div class="d-flex flex-wrap w-100 justify-content-between align-items-center gap-2">
                         <div>
-                            <h6 class="mb-1 fw-bold text-white">
+                            <h6 class="mb-1 fw-bold">
                                 ${sku} 
                                 <span class="text-muted fw-normal ms-2">— ${title}</span>
                             </h6>
