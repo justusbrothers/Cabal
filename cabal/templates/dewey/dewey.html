@@ -1,0 +1,140 @@
+<!-- /plugins/Cabal/cabal/templates/dewey/dewey.html -->
+
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+<style>
+    .ipn-badge {
+        color: #2b8a3e;
+        font-weight: bold;
+    }
+
+    .no-results {
+        color: #868e96;
+        padding: 20px;
+        text-align: center;
+    }
+
+    .debug-box {
+        background: #e7f5ff;
+        border: 1px solid #74c0fc;
+        border-radius: 6px;
+        color: #1864ab;
+        font-family: monospace;
+        font-size: 13px;
+        padding: 12px 15px;
+        margin-top: 15px;
+        margin-bottom: 15px;
+    }
+
+    /* Clickable copyable cell styles */
+    .copyable-cell {
+        cursor: pointer;
+        transition: background-color 0.15s ease;
+        position: relative;
+    }
+
+    .copyable-cell:hover {
+        background-color: #f1f3f5 !important;
+    }
+
+    .copyable-cell.copied {
+        background-color: #d1e7dd !important; /* Soft success green flash */
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4"><em>Dewey</em> <span class="text-muted fs-4">| Book Lookup</span></h1>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+
+            <form method="POST" class="search-form">
+                {% csrf_token %}
+
+                <div class="row g-2 align-items-center">
+                    <div class="col-md-9">
+                        <input type="text" name="search_term" class="form-control form-control-lg search-input" placeholder="Search by book title or keyword..." value="{{ search_term }}" required>
+                    </div>
+
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-primary btn-lg w-100 search-btn">Find Info</button>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Debug Banner -->
+            {% if debug_message %}
+                <div class="debug-box">
+                    <strong>[Debug Log]:</strong> {{ debug_message }}
+                </div>
+            {% endif %}
+
+            {% if results is not none %}
+                <h3 class="mt-4">Search Results for "{{ search_term }}"</h3>
+
+                {% if results %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mt-3">
+                            <thead>
+                                <tr>
+                                    <th>IPN</th>
+                                    <th>Book Name</th>
+                                    <th>UPC</th>
+                                    <th>Category</th>
+                                    <!-- <th>Stock</th> -->
+                                    <!-- <th>Location</th> -->
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                {% for book in results %}
+                                <tr>
+                                    <td class="copyable-cell"><span class="ipn-badge">{{ book.ipn }}</span></td>
+                                    <td class="copyable-cell">{{ book.name }}</td>
+                                    <td class="copyable-cell">{{ book.upc }}</td>
+                                    <td class="copyable-cell"><span class="badge bg-secondary">{{ book.category }}</span></td>
+                                    <!-- <td class="copyable-cell fw-bold {% if book.stock > 0 %}text-success{% else %}text-danger{% endif %}">{{ book.stock }}</td> -->
+                                    <!-- <td class="copyable-cell text-muted">{{ book.location }}</td> -->
+                                    <td class="copyable-cell">{{ book.description }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="no-results">No parts matched your search query in InvenTree.</p>
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        document.querySelectorAll(".copyable-cell").forEach(function (cell) {
+            cell.addEventListener("click", function () {
+                const textToCopy = this.innerText.trim();
+                
+                if (!textToCopy || textToCopy === "N/A") return;
+
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    this.classList.add("copied");
+
+                    setTimeout(() => {
+                        this.classList.remove("copied");
+                    }, 1000);
+                }).catch(err => {
+                    console.error("Failed to copy text to clipboard: ", err);
+                });
+            });
+        });
+    });
+</script>
+{% endblock %}

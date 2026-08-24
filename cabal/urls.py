@@ -5,6 +5,7 @@ from django.urls import path
 from .apps import (
     AttachPartImageView,
     Avisia,
+    Dewey,
     Forge,
     Cerebro,
     Syncroth,
@@ -32,6 +33,7 @@ urlpatterns = [
     path("attach-image/", AttachPartImageView.as_view(), name="attach-image"),
     path("avisia/", Avisia.as_view(), name="avisia"),
     path("cerebro/", Cerebro, name="cerebro"),
+    path("dewey/", Dewey.as_view(), name="dewey"),
     path("forge/", Forge, name="forge"),
     path("nexus/", Nexus.as_view(), name="nexus"),
     path("spectacle/", Spectacle.as_view(), name="spectacle"),

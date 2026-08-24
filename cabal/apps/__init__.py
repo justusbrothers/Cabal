@@ -6,6 +6,7 @@ from .avisia.avisia import (
     upload_customers as upload_customers,
     clear_customers as clear_customers,
 )
+from .dewey import Dewey as Dewey
 from .cerebro import Cerebro as Cerebro
 from .forge import Forge as Forge
 from .nexus import (
