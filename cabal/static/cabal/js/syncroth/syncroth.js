@@ -1,5 +1,13 @@
 // /plugins/Cabal/cabal/static/cabal/js/syncroth/syncroth.js
 
+const Cabal = window.Cabal || window.parent?.Cabal || window.top?.Cabal;
+
+// if (Cabal) {
+//     console.log("Successfully accessed parent's Cabal instance!", Cabal);
+// } else {
+//     console.warn("Cabal object not found on parent or local scope.");
+// }
+
 function copyIPSListToClipboard() {
     const textarea = document.getElementById("partsList");
     if (!textarea) return;
@@ -86,7 +94,7 @@ async function updateCSV() {
 
     const inStockDate = document.getElementById("in_stock_date")?.value || "";
     let whatnot_custom_suffix = document.getElementById("whatnot_release_date")?.value || "";
-    const csrfToken = getCSRFToken();
+    const csrfToken = Cabal.getCSRFToken();
 
     let location = document.querySelector('input[name="location"][type="hidden"]')?.value || 
                    document.getElementById("location")?.value || "";
