@@ -547,12 +547,12 @@ class Spectacle(APIView):
                 pub_code, base_ipn_slug, issue_number, volume, scanned_v_char
             )
 
-            whatnot_price = ""
+            floated_price = ""
             if scanned_price:
                 try:
-                    whatnot_price = str(math.ceil(float(scanned_price)))
+                    floated_price = str(math.ceil(float(scanned_price)))
                 except Exception:
-                    whatnot_price = ""
+                    floated_price = ""
 
             comic_data = {
                 "title": display_title,
@@ -571,18 +571,18 @@ class Spectacle(APIView):
                 "part_link": f"https://metron.cloud/issue/{scanned_metron_id}/",
                 "listed_on_whatnot": True,
                 "price": scanned_price,
-                "whatnot_price": whatnot_price,
+                "floated_price": floated_price,
                 "store_date": store_date_str,
                 "upc": original_barcode,
             }
 
             cover_a_price = self.clean_price_string(full_anchor.get("price"))
-            cover_a_wn_price = ""
+            cover_a_fl_price = ""
             if cover_a_price:
                 try:
-                    cover_a_wn_price = str(math.ceil(float(cover_a_price)))
+                    cover_a_fl_price = str(math.ceil(float(cover_a_price)))
                 except Exception:
-                    cover_a_wn_price = ""
+                    cover_a_fl_price = ""
 
             cover_a_raw_var = self.clean_text_encoding(
                 full_anchor.get("variant") or full_anchor.get("cover") or ""
@@ -613,7 +613,7 @@ class Spectacle(APIView):
                     "description": clean_description,
                     "upc": standard_barcode,
                     "price": cover_a_price,
-                    "whatnot_price": cover_a_wn_price,
+                    "floated_price": cover_a_fl_price,
                     "is_scanned_match": cover_a_is_match,
                 }
             ]
@@ -646,12 +646,12 @@ class Spectacle(APIView):
                 )
 
                 v_price = variant.get("price") or cover_a_price
-                v_wn_price = ""
+                v_fl_price = ""
                 if v_price:
                     try:
-                        v_wn_price = str(math.ceil(float(v_price)))
+                        v_fl_price = str(math.ceil(float(v_price)))
                     except Exception:
-                        v_wn_price = ""
+                        v_fl_price = ""
 
                 variants_list.append({
                     "metron_id": variant.get("id") or cover_a_metron_id,
@@ -663,7 +663,7 @@ class Spectacle(APIView):
                     "description": clean_description,
                     "upc": variant_upc,
                     "price": v_price,
-                    "whatnot_price": v_wn_price,
+                    "floated_price": v_fl_price,
                     "is_scanned_match": (variant_upc == original_barcode),
                 })
 
