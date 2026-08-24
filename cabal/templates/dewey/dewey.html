@@ -1,5 +1,3 @@
-<!-- /plugins/Cabal/cabal/templates/dewey/dewey.html -->
-
 {% extends "base.html" %}
 {% load static %}
 
@@ -55,13 +53,13 @@
             <form method="POST" class="search-form">
                 {% csrf_token %}
 
-                <div class="row g-2 align-items-center">
+                <div class="row g-2 align-items-start">
                     <div class="col-md-9">
-                        <input type="text" name="search_term" class="form-control form-control-lg search-input" placeholder="Search by book title or keyword..." value="{{ search_term }}" required>
+                        <textarea name="search_terms" class="form-control search-input" rows="4" placeholder="Enter search terms or book titles (one per line)...">{{ raw_search_terms }}</textarea>
                     </div>
 
                     <div class="col-md-3">
-                        <button type="submit" class="btn btn-primary btn-lg w-100 search-btn">Find Info</button>
+                        <button type="submit" class="btn btn-primary btn-lg w-100 search-btn h-100">Find Info</button>
                     </div>
                 </div>
             </form>
@@ -74,40 +72,48 @@
             {% endif %}
 
             {% if results is not none %}
-                <h3 class="mt-4">Search Results for "{{ search_term }}"</h3>
+                <h3 class="mt-4">Search Results</h3>
 
                 {% if results %}
                     <div class="table-responsive">
                         <table class="table table-hover align-middle mt-3">
                             <thead>
                                 <tr>
+                                    <th style="width: 40px;">
+                                        <input type="checkbox" class="form-check-input" id="select-all-checkbox" title="Select All" />
+                                    </th>
                                     <th>IPN</th>
                                     <th>Book Name</th>
                                     <th>UPC</th>
                                     <th>Category</th>
-                                    <!-- <th>Stock</th> -->
-                                    <!-- <th>Location</th> -->
                                     <th>Description</th>
                                 </tr>
                             </thead>
 
                             <tbody>
                                 {% for book in results %}
-                                <tr>
+                                <tr data-ipn="{{ book.ipn }}">
+                                    <td><input type="checkbox" class="form-check-input variant-row-sync-chk" /></td>
                                     <td class="copyable-cell"><span class="ipn-badge">{{ book.ipn }}</span></td>
                                     <td class="copyable-cell">{{ book.name }}</td>
                                     <td class="copyable-cell">{{ book.upc }}</td>
                                     <td class="copyable-cell"><span class="badge bg-secondary">{{ book.category }}</span></td>
-                                    <!-- <td class="copyable-cell fw-bold {% if book.stock > 0 %}text-success{% else %}text-danger{% endif %}">{{ book.stock }}</td> -->
-                                    <!-- <td class="copyable-cell text-muted">{{ book.location }}</td> -->
                                     <td class="copyable-cell">{{ book.description }}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
+
+                    <!-- Row of action buttons below the table -->
+                    <div class="d-flex gap-2 mt-3 align-items-center flex-wrap">
+                        <button type="button" class="btn btn-outline-success btn-sm" id="copy-selected-ipns-btn">
+                            <i class="bi bi-clipboard"></i> Copy Selected IPNs
+                        </button>
+                        <!-- Space reserved for future action buttons -->
+                    </div>
                 {% else %}
-                    <p class="no-results">No parts matched your search query in InvenTree.</p>
+                    <p class="no-results">No parts matched your search terms in InvenTree.</p>
                 {% endif %}
             {% endif %}
         </div>
@@ -118,6 +124,7 @@
 {% block extra_js %}
 <script>
     document.addEventListener("DOMContentLoaded", function () {
+        // Individual cell copying functionality
         document.querySelectorAll(".copyable-cell").forEach(function (cell) {
             cell.addEventListener("click", function () {
                 const textToCopy = this.innerText.trim();
@@ -135,6 +142,59 @@
                 });
             });
         });
+
+        // "Select All" master checkbox logic
+        const selectAllCheckbox = document.getElementById("select-all-checkbox");
+        if (selectAllCheckbox) {
+            selectAllCheckbox.addEventListener("change", function () {
+                const rowCheckboxes = document.querySelectorAll(".variant-row-sync-chk");
+                rowCheckboxes.forEach(chk => {
+                    chk.checked = selectAllCheckbox.checked;
+                });
+            });
+        }
+
+        // Copy Selected IPNs button logic
+        const copyBtn = document.getElementById("copy-selected-ipns-btn");
+        if (copyBtn) {
+            copyBtn.addEventListener("click", function () {
+                const checkedRows = document.querySelectorAll("tr[data-ipn]");
+                const ipnsToCopy = [];
+
+                checkedRows.forEach(row => {
+                    const checkbox = row.querySelector(".variant-row-sync-chk");
+                    if (checkbox && checkbox.checked) {
+                        const ipn = row.getAttribute("data-ipn");
+                        if (ipn && ipn !== "N/A") {
+                            ipnsToCopy.push(ipn);
+                        }
+                    }
+                });
+
+                if (ipnsToCopy.length === 0) {
+                    alert("Please select at least one row with a valid IPN.");
+                    return;
+                }
+
+                // Join IPNs with newlines (or commas, depending on your preferred format)
+                const textPayload = ipnsToCopy.join("\n");
+
+                navigator.clipboard.writeText(textPayload).then(() => {
+                    const originalText = copyBtn.innerHTML;
+                    copyBtn.innerHTML = `<i class="bi bi-check2">Copied ${ipnsToCopy.length} IPN(s)!</i>`;
+                    copyBtn.classList.remove("btn-outline-success");
+                    copyBtn.classList.add("btn-success");
+
+                    setTimeout(() => {
+                        copyBtn.innerHTML = originalText;
+                        copyBtn.classList.remove("btn-success");
+                        copyBtn.classList.add("btn-outline-success");
+                    }, 1500);
+                }).catch(err => {
+                    console.error("Failed to copy IPNs: ", err);
+                });
+            });
+        }
     });
 </script>
 {% endblock %}
