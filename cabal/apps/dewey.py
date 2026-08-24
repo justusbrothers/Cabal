@@ -1,5 +1,3 @@
-# /plugins/Cabal/cabal/apps/dewey.py
-
 import logging
 from django.shortcuts import render
 from django.utils.decorators import method_decorator
@@ -13,32 +11,39 @@ logger = logging.getLogger("inventree")
 
 @method_decorator(xframe_options_sameorigin, name="dispatch")
 class Dewey(View):
-    """Renders a static HTML template view for searching book IPNs."""
+    """Renders a static HTML template view for searching book IPNs via a list of terms."""
 
     def get(self, request, *args, **kwargs):
         return render(
             request,
             "dewey/dewey.html",
-            {"results": None, "search_term": "", "debug_message": None},
+            {"results": None, "raw_search_terms": "", "debug_message": None},
         )
 
     def post(self, request, *args, **kwargs):
-        search_term = request.POST.get("search_term", "").strip()
+        raw_search_terms = request.POST.get("search_terms", "")
+        # Split search terms by line and clean whitespace
+        search_terms = [t.strip() for t in raw_search_terms.splitlines() if t.strip()]
         results = []
         debug_message = None
 
-        if search_term:
+        if search_terms:
             logger.info(
-                f"[Dewey] Triggered search for term: '{search_term}' by user: {request.user}"
+                f"[Dewey] Triggered batch search for {len(search_terms)} term(s) by user: {request.user}"
             )
 
             try:
+                # Build a dynamic OR query combining all search terms
+                query = Q()
+                for term in search_terms:
+                    query |= (
+                        Q(name__icontains=term)
+                        | Q(description__icontains=term)
+                        | Q(IPN__icontains=term)
+                    )
+
                 # Query InvenTree parts using Django ORM
-                parts = Part.objects.filter(
-                    Q(name__icontains=search_term)
-                    | Q(description__icontains=search_term)
-                    | Q(IPN__icontains=search_term)
-                ).distinct()
+                parts = Part.objects.filter(query).distinct()
 
                 logger.info(
                     f"[Dewey] Query successful. Raw parts returned: {parts.count()}"
@@ -77,7 +82,7 @@ class Dewey(View):
                         "upc": part_params.get("UPC", "N/A"),
                     })
 
-                debug_message = f"Query executed successfully. Found {len(results)} matching part(s)."
+                debug_message = f"Query executed successfully for {len(search_terms)} term(s). Found {len(results)} matching part(s)."
 
             except Exception as e:
                 logger.error(f"[Dewey] InvenTree query failed: {e}", exc_info=True)
@@ -85,7 +90,7 @@ class Dewey(View):
 
         context = {
             "results": results,
-            "search_term": search_term,
+            "raw_search_terms": raw_search_terms,
             "debug_message": debug_message,
         }
 
