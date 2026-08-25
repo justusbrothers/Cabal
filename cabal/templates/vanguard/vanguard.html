@@ -103,14 +103,14 @@
                         <div id="recommendations-list" class="list-group list-group-flush mb-3 rounded shadow-sm border border-secondary">
                             {% for pack in recommended_packs %}
                                 <label class="list-group-item bg-dark d-flex gap-3 align-items-center py-3" style="cursor: pointer;">
-                                    
+
                                     <input type="checkbox" 
                                            class="form-check-input flex-shrink-0 recommendation-checkbox pack-checkbox fs-4" 
                                            id="pack_{{ forloop.counter }}" 
                                            name="selected_packs" 
                                            value="{{ pack.recommended_pack_sku }}"
                                            {% if not pack.has_missing_cover %}checked{% endif %}>
-                                           
+
                                     <div class="d-flex flex-wrap w-100 justify-content-between align-items-center gap-2">
                                         <div>
                                             <h6 class="mb-1 fw-bold text-white">
