@@ -16,6 +16,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .. import constants
+from cabal.utils import clean_text
 
 logger = logging.getLogger("inventree")
 
@@ -459,7 +460,7 @@ class Spectacle(APIView):
                     break
 
             series_dict = full_anchor.get("series", {})
-            series_name = self.clean_text_encoding(series_dict.get("name", "").strip())
+            series_name = clean_text(series_dict.get("name", "").strip())
             volume = series_dict.get("volume")
             issue_number = full_anchor.get("number", "?")
 
