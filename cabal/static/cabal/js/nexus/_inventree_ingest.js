@@ -1,5 +1,15 @@
 // /plugins/Cabal/cabal/static/cabal/js/nexus/_inventree_ingest.js
 
+function getCabalConfig() {
+    return window.CabalConfig || (window.parent && window.parent.CabalConfig) || {};
+}
+
+const config = getCabalConfig();
+const part_categories = config.PUBLISHER_PART_CATEGORIES || [];
+const stock_locations = config.PUBLISHER_STOCK_LOCATIONS || [];
+const categories = config.CATEGORIES_LIST || [];
+const locations = config.LOCATIONS_LIST || [];
+
 const submitBtn = document.getElementById('submitToInvenTreeBtn');
 
 function loadModalWithData(spectacleData, originalRowData, currentUPC) {
@@ -16,8 +26,8 @@ function loadModalWithData(spectacleData, originalRowData, currentUPC) {
     let storeDate = comic.store_date || "";
 
     let matchedPubCode = comic.pub_code || "UNK";
-    let finalCategory = comic.category || PUBLISHER_PART_CATEGORIES[matchedPubCode] || 1;
-    let finalLocation = PUBLISHER_STOCK_LOCATIONS[matchedPubCode] || "";
+    let finalCategory = comic.category || part_categories[matchedPubCode] || 1;
+    let finalLocation = stock_locations[matchedPubCode] || "";
 
     let variantVal = comic.variant_name || "";
     
@@ -79,9 +89,9 @@ function loadModalWithData(spectacleData, originalRowData, currentUPC) {
     }
     variantsChecklistHtml += `</div>`;
 
-    let categoryOptionsHtml = CATEGORIES_LIST.map(cat => `<option value="${cat.id}" ${(cat.id === parseInt(finalCategory)) ? 'selected' : ''}>${cat.name}</option>`).join('');
+    let categoryOptionsHtml = categories.map(cat => `<option value="${cat.id}" ${(cat.id === parseInt(finalCategory)) ? 'selected' : ''}>${cat.name}</option>`).join('');
     let locationOptionsHtml = `<option value="" ${!finalLocation ? 'selected' : ''}>-- No Stock Location --</option>` + 
-        LOCATIONS_LIST.map(loc => `<option value="${loc.id}" ${(loc.id === parseInt(finalLocation)) ? 'selected' : ''}>${loc.name}</option>`).join('');
+        locations.map(loc => `<option value="${loc.id}" ${(loc.id === parseInt(finalLocation)) ? 'selected' : ''}>${loc.name}</option>`).join('');
 
     let metronBadgeHtml = "";
     if (comic.metron_id) {
