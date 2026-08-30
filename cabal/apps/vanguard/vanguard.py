@@ -41,12 +41,13 @@ class LookupPacksApiView(APIView):
 
     def post(self, request, *args, **kwargs):
         ipn_raw = request.data.get("ipn_list", "")
+        sub_ipn_raw = request.data.get("sub_ipns", "")
         existing_lines = VanguardParser.parse_textarea_input(ipn_raw)
         recommended_ipn_list = list(dict.fromkeys(existing_lines))
         updated_ipn_text = "\n".join(recommended_ipn_list)
 
         recommended_packs = VanguardParser.recommend_packs_from_ipns(
-            ipn_list=recommended_ipn_list, min_stock=1
+            ipn_list=recommended_ipn_list, min_stock=2, sub_ipns=sub_ipn_raw
         )
 
         return Response(
@@ -55,6 +56,9 @@ class LookupPacksApiView(APIView):
                 "message": f"Found {len(recommended_packs)} pack recommendation(s).",
                 "ipn_list": updated_ipn_text,
                 "recommended_packs": recommended_packs,
+                "_debug": {
+                    "received_sub_ipns_raw": sub_ipn_raw,
+                },
             },
             status=status.HTTP_200_OK,
         )
@@ -220,9 +224,11 @@ class Vanguard(View):
 
         for pack_line in parsed_packs:
             pack_item = VanguardParser.parse_pack_entry(pack_line)
+
             if pack_item:
                 # Clean pack titles as well
                 pack_item["Title"] = clean_text(pack_item.get("Title", ""))
+
                 items.append(pack_item)
 
         # --- PDF Generation Pipeline ---
@@ -386,15 +392,29 @@ class Vanguard(View):
         if pack_count == 0:
             story.append(Paragraph("No pack assemblies detected.", body_style))
 
-        # Section 3: Sub Box Pull Requests
+        # Section 3: Sub Box Pull Requests with Retail Pricing & Totals
+        sub_totals_data = VanguardParser.calculate_sub_totals(sub_pulls_raw)
+        grouped_sub_pulls = sub_totals_data["breakdown"]
+        customer_totals = sub_totals_data["customer_totals"]
+        grand_total = sub_totals_data["grand_total"]
+        discounted_grand_total = grand_total * 0.90
+
         if grouped_sub_pulls:
             story.append(Spacer(1, 10))
-            story.append(Paragraph("3. Sub Box Pull Requests", h2_style))
+            story.append(
+                Paragraph(
+                    f"3. Sub Box Pull Requests - Grand Total: ${grand_total:.2f} <i>(10% Off: ${discounted_grand_total:.2f})</i>",
+                    h2_style,
+                )
+            )
 
-            for customer_name, book_list in grouped_sub_pulls.items():
+            for customer_name, book_items in grouped_sub_pulls.items():
+                cust_total = customer_totals.get(customer_name, 0.0)
+                discounted_total = cust_total * 0.90
+
                 sub_block = [
                     Paragraph(
-                        f"Subscriber: {customer_name} ({len(book_list)} items)",
+                        f"Subscriber: <b>{customer_name}</b> ({len(book_items)} items) — Total: <b>${cust_total:.2f}</b> <i>(10% Off: ${discounted_total:.2f})</i>",
                         sub_hdr_style,
                     )
                 ]
@@ -403,21 +423,30 @@ class Vanguard(View):
                     [
                         Paragraph("<b>Pull</b>", body_style),
                         Paragraph("<b>Item Title</b>", body_style),
+                        Paragraph("<b>Price</b>", body_style),
                     ]
                 ]
 
-                for book_title in book_list:
+                for item in book_items:
+                    title_val = item["title"] or item["ipn"]
+                    title_str = clean_text(title_val)
+                    price_val = item.get("price", 0.0)
+                    price_str = f"${price_val:.2f}" if price_val > 0 else "—"
+
                     sub_table_data.append([
                         PrintableCheckbox(size=14),
-                        Paragraph(book_title, body_style),
+                        Paragraph(title_str, body_style),
+                        Paragraph(price_str, body_style),
                     ])
 
-                st = Table(sub_table_data, colWidths=[30, 510])
+                # Col widths: 30 (checkbox), 420 (title), 90 (price) = 540 total width
+                st = Table(sub_table_data, colWidths=[30, 420, 90])
                 st.setStyle(
                     TableStyle([
                         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#ECF0F1")),
                         ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#BDC3C7")),
                         ("ALIGN", (0, 0), (0, -1), "CENTER"),
+                        ("ALIGN", (2, 0), (2, -1), "RIGHT"),  # Right align price column
                         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                     ])
                 )

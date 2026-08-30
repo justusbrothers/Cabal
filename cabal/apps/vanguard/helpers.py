@@ -1,11 +1,16 @@
 # /plugins/Cabal/cabal/apps/vanguard/helpers.py
 
+from collections import Counter
+import logging
+import json
 import re
 from datetime import datetime, date
 
-from django.db.models import Sum
+from django.db.models import Sum, Q
 
 from part.models import Part
+
+logger = logging.getLogger("inventree")
 
 
 try:
@@ -99,6 +104,7 @@ class VanguardParser:
     @classmethod
     def parse_sub_pulls_by_customer(cls, raw_text):
         grouped_pulls = {}
+
         lines = [
             line.strip() for line in re.split(r"[\r\n]+", raw_text) if line.strip()
         ]
@@ -277,18 +283,17 @@ class VanguardParser:
         return list(dict.fromkeys(ipns))
 
     @classmethod
-    def recommend_packs_from_ipns(cls, ipn_list=None, min_stock=2):
+    def recommend_packs_from_ipns(cls, ipn_list=None, min_stock=2, sub_ipns=None):
         """
-        Recommends multi-issue packs. Strictly requires stock >= 2 for a cover variant
-        to be included in the generated pack SKU and title.
+        Recommends multi-issue packs. Correctly normalizes base parts and variant letters
+        (treating numbers without trailing letters as cover 'A') and subtracts sub_ipns.
         """
-        # HARD GUARANTEE: Force min_stock to at least 2
-        MIN_REQUIRED_STOCK = max(2, int(min_stock or 2))
+        MIN_REQUIRED_STOCK = max(1, int(min_stock or 1))
 
         if Part is None or not ipn_list:
             return []
 
-        # 1. Clean and normalize input tokens
+        # 1. Clean, normalize, and count input tokens/IPNs
         raw_tokens = []
         if isinstance(ipn_list, str):
             raw_tokens = ipn_list.split()
@@ -300,8 +305,45 @@ class VanguardParser:
         if not target_tokens:
             return []
 
-        # Regex matches base issue prefix (e.g. 'CB_MAR_BISHOP_V2-002') and optional variant ('C')
+        # Regex to split base issue (e.g. 'CB_IMG_ROOKEXODUS-011') and optional variant letter ('B', 'C', etc.)
+        # Group 1: Base prefix/number (e.g. 'CB_IMG_ROOKEXODUS-011')
+        # Group 2: Optional variant letter (e.g. 'B')
         variant_pattern = re.compile(r"^(.*-\d+)([A-Z])?$", re.IGNORECASE)
+
+        # Parse and count sub_ipns into a normalized map: (base_ipn, variant_letter) -> count
+        sub_counts = Counter()
+        if sub_ipns:
+            raw_sub_lines = []
+            if isinstance(sub_ipns, str):
+                raw_sub_lines = sub_ipns.splitlines()
+            elif isinstance(sub_ipns, list):
+                raw_sub_lines = sub_ipns
+
+            for line in raw_sub_lines:
+                line_str = str(line).strip()
+                if not line_str:
+                    continue
+
+                # Strip customer prefix if present (e.g. "Arik:CB_...")
+                if ":" in line_str:
+                    remainder = line_str.split(":")[-1].strip()
+                else:
+                    remainder = line_str
+
+                for token in remainder.split():
+                    clean_token = token.strip().upper()
+                    if not clean_token:
+                        continue
+
+                    match = variant_pattern.match(clean_token)
+                    if match:
+                        base = match.group(1).upper()
+                        # If no letter after digits, default to 'A'
+                        letter = (match.group(2) or "A").upper()
+                        sub_counts[(base, letter)] += 1
+
+        print("--- [VANGUARD DEBUG] ---")
+        print(f"Normalized sub_counts: {dict(sub_counts)}")
 
         # Track appearance order of base prefixes
         base_prefix_order = []
@@ -319,8 +361,6 @@ class VanguardParser:
             return []
 
         # 2. Query all database parts under matching base prefixes
-        from django.db.models import Q
-
         prefix_query = Q()
         for prefix in base_prefix_order:
             prefix_query |= Q(IPN__istartswith=prefix)
@@ -328,6 +368,7 @@ class VanguardParser:
         query = Part.objects.filter(prefix_query)
 
         grouped_issues = {}
+        variant_stock_map = {}
 
         for part in query:
             clean_ipn = part.IPN.strip().upper() if part.IPN else ""
@@ -342,9 +383,10 @@ class VanguardParser:
             if base_ipn not in seen_prefixes:
                 continue
 
+            # Default to 'A' if there is no letter following the issue number digits
             variant_letter = (match.group(2) or "A").upper()
 
-            # Calculate actual stock
+            # Calculate actual stock from DB
             actual_qty = 0
             if hasattr(part, "stock_items"):
                 stock_sum = part.stock_items.filter(quantity__gt=0).aggregate(
@@ -354,28 +396,38 @@ class VanguardParser:
             elif hasattr(part, "in_stock"):
                 actual_qty = int(part.in_stock)
 
+            # Subtract matched sub_ipns quantity using (base_ipn, variant_letter)
+            subtraction_amt = sub_counts.get((base_ipn, variant_letter), 0)
+            adjusted_qty = max(0, actual_qty - subtraction_amt)
+
+            print(
+                f"Part: {clean_ipn} (Base: {base_ipn}, Cover: {variant_letter}) | DB Qty: {actual_qty} | Subtracted: {subtraction_amt} | Adjusted Qty: {adjusted_qty}"
+            )
+
+            variant_stock_map[clean_ipn] = adjusted_qty
+
             if base_ipn not in grouped_issues:
                 grouped_issues[base_ipn] = {}
 
-            # Save variant stock & check against hard threshold (>= 2)
             grouped_issues[base_ipn][variant_letter] = {
-                "qty": actual_qty,
-                "has_stock": actual_qty >= MIN_REQUIRED_STOCK,
+                "qty": adjusted_qty,
+                "ipn": clean_ipn,
+                "has_stock": adjusted_qty >= MIN_REQUIRED_STOCK,
             }
 
         recommendations = []
 
         for base_ipn, covers_map in grouped_issues.items():
-            # STRICT FILTER: Only letters where has_stock is TRUE (qty >= 2)
+            # 1. STRICT FILTER: Only include covers that meet or exceed min_stock AFTER sub subtraction
             available_covers = sorted([
                 letter for letter, data in covers_map.items() if data["has_stock"]
             ])
 
-            # Require AT LEAST 2 qualifying covers (e.g., A and B) to form a pack
+            # 2. Require AT LEAST 2 qualifying covers with sufficient stock to form a pack set
             if len(available_covers) < 2:
                 continue
 
-            # Build cover details list for ALL variants found in InvenTree
+            # Build cover details list for all variants found
             all_covers_sorted = sorted(covers_map.keys())
             cover_details = []
             for letter in all_covers_sorted:
@@ -383,32 +435,38 @@ class VanguardParser:
                 cover_details.append({
                     "letter": str(letter),
                     "qty": int(covers_map[letter]["qty"]),
-                    "has_stock": bool(is_eligible),  # False for Cover C (qty: 1)
+                    "has_stock": bool(is_eligible),
                 })
 
-            # Build pack string strictly using available_covers ONLY -> "AB"
+            # Ensure minimum stock threshold holds across all selected available covers
+            min_cover_qty = min(covers_map[c]["qty"] for c in available_covers)
+            if min_cover_qty < MIN_REQUIRED_STOCK:
+                continue
+
+            # Deduct stock allocated for this recommendation from variant_stock_map
+            for c in available_covers:
+                comp_ipn = covers_map[c]["ipn"]
+                if comp_ipn in variant_stock_map:
+                    variant_stock_map[comp_ipn] = max(
+                        0, variant_stock_map[comp_ipn] - min_cover_qty
+                    )
+
             cover_letters_str = "".join(available_covers)
-
-            # Max packs is constrained by the minimum stock among ONLY the qualifying covers
-            max_packs_possible = min(covers_map[c]["qty"] for c in available_covers)
-
             pack_sku = f"{base_ipn}-PACK{cover_letters_str}"
             base_title = cls.get_inventree_part_name(base_ipn)
-
             has_missing_cover = any(not cover["has_stock"] for cover in cover_details)
 
             recommendations.append({
-                "recommended_pack_sku": pack_sku,  # CB_MAR_BISHOP_V2-002-PACKAB
-                "title": f"{base_title} Set ({', '.join(available_covers)})",  # Bishop #2 Set (A, B)
+                "recommended_pack_sku": pack_sku,
+                "title": f"{base_title} Set ({', '.join(available_covers)})",
                 "base_ipn": base_ipn,
-                "available_covers": available_covers,  # ['A', 'B']
-                "cover_details": cover_details,  # Includes A, B, and C (C has has_stock=False)
-                "has_missing_cover": has_missing_cover,  # True if any cover has insufficient stock
-                "cover_count": len(available_covers),  # 2
-                "max_buildable_packs": max_packs_possible,
+                "available_covers": available_covers,
+                "cover_details": cover_details,
+                "has_missing_cover": has_missing_cover,
+                "cover_count": len(available_covers),
+                "max_buildable_packs": min_cover_qty,
             })
 
-        # 3. Sort recommendations to match the original input order of base prefixes
         order_map = {prefix: idx for idx, prefix in enumerate(base_prefix_order)}
         recommendations.sort(key=lambda x: order_map.get(x["base_ipn"], 999999))
 
@@ -467,3 +525,216 @@ class VanguardParser:
                 filtered.append(ipn)
 
         return filtered
+
+    @staticmethod
+    def get_book_price(ipn):
+        """
+        Retrieves the price of a book/part based on its IPN.
+        Checks InvenTree part attributes, pricing fields, or related parameters.
+        Returns a float representing the price.
+        """
+        clean_ipn = ipn.strip() if ipn else ""
+        if not clean_ipn or Part is None:
+            return 0.00
+
+        part = VanguardParser.get_inventree_part_obj(clean_ipn)
+        if not part:
+            return 0.00
+
+        # 1. Check direct attributes on Part if available
+        for attr in ["selling_price", "price", "default_price", "cost"]:
+            if hasattr(part, attr):
+                val = getattr(part, attr)
+                if val is not None:
+                    try:
+                        return float(val)
+                    except (ValueError, TypeError):
+                        pass
+
+        # 2. Check Part Parameters if Parameter model is available
+        if Parameter is not None:
+            try:
+                params = Parameter.objects.filter(model_id=part.pk)
+                for param in params:
+                    template_name = ""
+                    if hasattr(param, "template") and param.template:
+                        template_name = str(getattr(param.template, "name", "")).lower()
+
+                    data_str = str(getattr(param, "data", "")).lower()
+                    if any(
+                        term in template_name
+                        for term in ["price", "retail", "cost", "msrp"]
+                    ):
+                        match = re.search(r"(\d+(?:\.\d+)?)", data_str)
+                        if match:
+                            return float(match.group(1))
+            except Exception:
+                pass
+
+        # Default fallback comic price if none found
+        return 0.00
+
+    @staticmethod
+    def calculate_sub_totals(sub_pulls_raw):
+        breakdown = {}
+        customer_totals = {}
+        grand_total = 0.0
+
+        logger.info(
+            f"🔍 [VanguardParser] calculate_sub_totals received type: {type(sub_pulls_raw)}, value: {str(sub_pulls_raw)[:200]}"
+        )
+
+        if not sub_pulls_raw:
+            return {"breakdown": {}, "customer_totals": {}, "grand_total": 0.0}
+
+        if isinstance(sub_pulls_raw, str):
+            stripped = sub_pulls_raw.strip()
+            if stripped.startswith("[") or stripped.startswith("{"):
+                try:
+                    sub_pulls_raw = json.loads(sub_pulls_raw)
+                except (json.JSONDecodeError, TypeError):
+                    sub_pulls_raw = stripped.splitlines()
+            else:
+                sub_pulls_raw = stripped.splitlines()
+
+        if isinstance(sub_pulls_raw, dict):
+            sub_pulls_raw = (
+                sub_pulls_raw.get("pulls")
+                or sub_pulls_raw.get("data")
+                or [sub_pulls_raw]
+            )
+
+        if not isinstance(sub_pulls_raw, (list, tuple)):
+            sub_pulls_raw = []
+
+        # Import Part model locally to avoid circular dependencies
+        try:
+            from part.models import Part
+        except ImportError:
+            Part = None
+
+        for idx, item in enumerate(sub_pulls_raw):
+            if isinstance(item, str):
+                item = item.strip()
+                if not item:
+                    continue
+
+                if ":" in item:
+                    parts = item.split(":", 1)
+                    customer_name = parts[0].strip()
+                    ipn_val = parts[1].strip()
+                else:
+                    customer_name = "Unknown"
+                    ipn_val = item
+
+                title_val = ipn_val
+                retail_val = 0.0
+
+                if Part:
+                    try:
+                        part_obj = (
+                            Part.objects.filter(IPN=ipn_val).first()
+                            or Part.objects.filter(name=ipn_val).first()
+                        )
+                        if part_obj:
+                            title_val = getattr(part_obj, "name", ipn_val)
+
+                            # 🔎 DEBUG: Inspect available attributes and pricing methods on part_obj
+                            logger.info(
+                                f"🔎 [VanguardParser DEBUG] Found Part object for IPN '{ipn_val}': ID={part_obj.pk}, Name={part_obj.name}"
+                            )
+                            logger.info(
+                                f"🔎 [VanguardParser DEBUG] Part attributes/methods: {[m for m in dir(part_obj) if 'price' in m or 'sale' in m or 'pricing' in m]}"
+                            )
+
+                            # Try multiple potential pricing pathways common in InvenTree or custom plugins
+                            if hasattr(part_obj, "get_price"):
+                                try:
+                                    sale_price_obj = part_obj.get_price(1)
+                                    logger.info(
+                                        f"🔎 [VanguardParser DEBUG] get_price() returned: {sale_price_obj} (type: {type(sale_price_obj)})"
+                                    )
+
+                                    if sale_price_obj:
+                                        retail_val = float(
+                                            getattr(
+                                                sale_price_obj,
+                                                "quantity",
+                                                sale_price_obj,
+                                            )
+                                            or 0.0
+                                        )
+                                except Exception as sp_err:
+                                    logger.warning(
+                                        f"⚠️ [VanguardParser DEBUG] Error calling get_price(): {sp_err}"
+                                    )
+
+                            # Fallback checks if attributes exist directly
+                            if retail_val == 0.0:
+                                for attr in [
+                                    "sale_price",
+                                    "retail_price",
+                                    "default_price",
+                                ]:
+                                    if hasattr(part_obj, attr):
+                                        val = getattr(part_obj, attr)
+                                        logger.info(
+                                            f"🔎 [VanguardParser DEBUG] Found direct attribute '{attr}': {val}"
+                                        )
+                                        if val:
+                                            retail_val = float(val)
+                                            break
+                        else:
+                            logger.warning(
+                                f"⚠️ [VanguardParser DEBUG] No Part object matched IPN or Name: '{ipn_val}'"
+                            )
+                    except Exception as e:
+                        logger.error(
+                            f"❌ [VanguardParser] Error resolving part for IPN {ipn_val}: {e}",
+                            exc_info=True,
+                        )
+
+                book_item = {
+                    "customer": customer_name,
+                    "title": title_val,
+                    "ipn": ipn_val,
+                    "price": float(retail_val),
+                }
+            elif isinstance(item, dict):
+                customer_name = item.get("customer", "Unknown")
+                ipn_val = item.get("ipn") or item.get("title", "")
+                title_val = item.get("title") or ipn_val
+
+                pricing_obj = item.get("pricing", {})
+                if isinstance(pricing_obj, dict):
+                    retail_val = pricing_obj.get("retail_price") or pricing_obj.get(
+                        "price"
+                    )
+                else:
+                    retail_val = None
+
+                price = float(retail_val or item.get("price") or 0.0)
+
+                book_item = {
+                    "customer": customer_name,
+                    "title": title_val,
+                    "ipn": ipn_val,
+                    "price": price,
+                }
+            else:
+                continue
+
+            if customer_name not in breakdown:
+                breakdown[customer_name] = []
+                customer_totals[customer_name] = 0.0
+
+            breakdown[customer_name].append(book_item)
+            item_price = book_item.get("price", 0.0)
+            customer_totals[customer_name] += item_price
+            grand_total += item_price
+
+        return {
+            "breakdown": breakdown,
+            "customer_totals": customer_totals,
+            "grand_total": grand_total,
+        }
