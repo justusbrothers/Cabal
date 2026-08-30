@@ -31,6 +31,7 @@ def clean_text(text: str, ascii_only: bool = False) -> str:
     # 2. Fix specific corrupted strings
     known_replacements = {
         "šEji■": "Sejic",
+        "Ribić": "Ribic",
     }
     for bad_str, good_str in known_replacements.items():
         text = text.replace(bad_str, good_str)
