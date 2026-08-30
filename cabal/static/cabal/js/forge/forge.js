@@ -15,7 +15,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         return window.CabalConfig || (window.parent && window.parent.CabalConfig) || {};
     }
 
-    // Example usage inside your sub-app scripts:
     const config = getCabalConfig();
     const publishers = config.PUBLISHER_REGISTRY || [];
     const categories = config.CATEGORIES_LIST || [];
