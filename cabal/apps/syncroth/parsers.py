@@ -1,5 +1,6 @@
 # cabal/apps/syncroth/parsers.py
 
+import logging
 import csv
 import io
 import re
@@ -8,7 +9,7 @@ from decimal import Decimal, ROUND_HALF_UP
 
 from cabal.utils import normalize_title_trailing_the
 
-# logger = logging.getLogger("inventree")
+logger = logging.getLogger("inventree")
 
 
 def build_descriptiononly_data_file(items, request=None):
@@ -153,6 +154,12 @@ def build_whatnot_data_file(
 
     pack_deductions = {}
 
+    logger.info(
+        "syncroth:build_whatnot_data_file: Starting export for %s items. Listing type: %s",
+        len(items),
+        whatnot_listing_type,
+    )
+
     for item in items:
         part = getattr(item, "part", item)
 
@@ -173,12 +180,26 @@ def build_whatnot_data_file(
 
     for item in items:
         part = getattr(item, "part", item)
+        ipn_identifier = getattr(part, "IPN", str(part))
         qty = data_tool_instance.get_actual_quantity(item)
 
+        raw_qty_before_deduction = qty
         if not hasattr(part, "_is_pack_inheritance") and part.IPN in pack_deductions:
             qty -= pack_deductions[part.IPN]
+            logger.debug(
+                "syncroth:build_whatnot_data_file: Pack deduction applied to IPN %s. Reduced qty from %s by %s to %s",
+                ipn_identifier,
+                raw_qty_before_deduction,
+                pack_deductions[part.IPN],
+                qty,
+            )
 
         if qty <= 0:
+            logger.warning(
+                "syncroth:build_whatnot_data_file: SKIPPING IPN %s because calculated quantity is <= 0 (qty: %s)",
+                ipn_identifier,
+                qty,
+            )
             continue
 
         condition = data_tool_instance.get_parameter_value(
@@ -209,6 +230,7 @@ def build_whatnot_data_file(
                         inferred_book_count = 1
 
         price = 0.0
+        raw_price = None
 
         if is_pack:
             price_names = (
@@ -357,14 +379,13 @@ def build_whatnot_data_file(
                     if param.template.name.lower() in [p.lower() for p in price_names]:
                         try:
                             raw_price = float(param.data)
-
                             break
                         except (ValueError, TypeError):
                             pass
 
             price = float(raw_price) if raw_price is not None else 0.0
 
-            desc = part.description
+            desc = getattr(part, "description", "")
             imgs = data_tool_instance.get_part_images(part, max_images=8)
             true_book_count = inferred_book_count
 
@@ -406,28 +427,23 @@ def build_whatnot_data_file(
         formatted_price = str(round(price)) if price > 0 else ""
 
         raw_cost = data_tool_instance.get_parameter_value(part, "Item Cost", "")
-        # logger.info("syncroth:build_whatnot_data_file:raw_cost: %s", raw_cost)
 
         item_cost = ""
         if raw_cost not in [None, ""]:
             try:
                 cost_str = str(raw_cost).strip()
-
                 is_already_xyz = False
 
                 if "." in cost_str:
                     _, dec_part = cost_str.split(".", 1)
-
                     if len(dec_part) == 2:
                         is_already_xyz = True
 
                 if not is_already_xyz:
                     d_cost = Decimal(cost_str)
-
                     rounded_cost = d_cost.quantize(
                         Decimal("0.01"), rounding=ROUND_HALF_UP
                     )
-
                     item_cost = str(rounded_cost)
                 else:
                     item_cost = cost_str
@@ -435,10 +451,17 @@ def build_whatnot_data_file(
             except (ValueError, TypeError):
                 item_cost = str(raw_cost)
 
-        # logger.info("syncroth:build_whatnot_data_file:item_cost: %s", item_cost)
+        logger.debug(
+            "syncroth:build_whatnot_data_file: Parsed item -> IPN: %s | Title: %s | Qty: %s | Price: %s | Cost: %s",
+            ipn_identifier,
+            title,
+            qty,
+            formatted_price,
+            item_cost,
+        )
 
         print(
-            f"[DEBUG CSV] IPN: {part.IPN} | Type: {whatnot_listing_type} | Raw Price: {raw_price} | Final Price: {formatted_price} | Item Cost: {item_cost}"
+            f"[DEBUG CSV] IPN: {ipn_identifier} | Type: {whatnot_listing_type} | Raw Price: {raw_price} | Final Price: {formatted_price} | Item Cost: {item_cost}"
         )
 
         writer.writerow([
@@ -458,9 +481,7 @@ def build_whatnot_data_file(
             "Not Hazmat",
             condition,
             item_cost,
-            part._original_clean_ipn
-            if hasattr(part, "_original_clean_ipn")
-            else part.IPN,
+            getattr(part, "_original_clean_ipn", None) or getattr(part, "IPN", ""),
             *imgs,
         ])
 
