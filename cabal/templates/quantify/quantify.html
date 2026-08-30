@@ -1,0 +1,82 @@
+<!-- /plugins/Cabal/cabal/templates/quantify/quantify.html -->
+
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <h2>📦 Cabal: Quantify Stock Recovery</h2>
+            <p class="text-muted">Paste your recovery CSV below to bulk-update your inventory quantities by IPN.</p>
+            <hr>
+
+            <!-- Django Messages -->
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <form method="POST" class="mb-4">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label for="csv_input" class="form-label font-weight-bold">CSV Data (Format: <code>IPN,stock_qty</code>)</label>
+                    <textarea class="form-control font-monospace" id="csv_input" name="csv_input" rows="10" placeholder="IPN,stock_qty&#10;CB_DC_001,15&#10;CB_MARV_042,8" required></textarea>
+                </div>
+
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="dry_run" name="dry_run" checked>
+                    <label class="form-check-label font-weight-bold text-info" for="dry_run">
+                        Enable Dry Run (Simulate changes without saving to the database)
+                    </label>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-play"></i> Run Quantify
+                </button>
+            </form>
+
+            <!-- Preview Results Table -->
+            {% if preview_logs %}
+                <div class="card mt-4">
+                    <div class="card-header bg-dark text-white">
+                        <strong>Preview Results</strong> {% if is_dry_run_result %}<span class="badge bg-info text-dark">Simulated</span>{% else %}<span class="badge bg-success">Committed</span>{% endif %}
+                    </div>
+                    <div class="card-body p-0">
+                        <table class="table table-striped table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>IPN</th>
+                                    <th>Action</th>
+                                    <th>Old Quantity</th>
+                                    <th>New Quantity</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in preview_logs %}
+                                    <tr>
+                                        <td><code>{{ log.ipn }}</code></td>
+                                        <td>
+                                            {% if log.action == 'UPDATE' %}
+                                                <span class="badge bg-warning text-dark">Update</span>
+                                            {% else %}
+                                                <span class="badge bg-success">Create</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ log.old_qty }}</td>
+                                        <td><strong>{{ log.new_qty }}</strong></td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

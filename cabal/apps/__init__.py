@@ -13,6 +13,7 @@ from .nexus import (
     Nexus as Nexus,
     AttachPartImageView as AttachPartImageView,
 )
+from .quantify import Quantify as Quantify
 from .spectacle import Spectacle as Spectacle
 from .syncroth.syncroth import Syncroth as Syncroth
 from .syncroth.pdf import WeeklyReportPDFView as WeeklyReportPDFView

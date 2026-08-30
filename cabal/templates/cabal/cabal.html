@@ -54,6 +54,12 @@
                     Dewey
                 </button>
             </li>
+
+            <li class="d-flex align-items-stretch">
+                <button class="nav-tab-btn d-flex align-items-center px-3 border-0 bg-transparent h-100 position-relative" data-target="tab-quantify">
+                    Quantify
+                </button>
+            </li>
         </ul>
     </div>
 
@@ -120,30 +126,37 @@
     </iframe>
 
     <iframe
-        id="tab-syncroth" 
+        id="tab-syncroth"
         class="tab-panel w-100 h-100 border-0"
         src="{% url 'plugin:cabal:syncroth' %}"
         loading="lazy">
     </iframe>
 
     <iframe
-        id="tab-cerebro" 
+        id="tab-cerebro"
         class="tab-panel w-100 h-100 border-0"
         src="{% url 'plugin:cabal:cerebro' %}"
         loading="lazy">
     </iframe>
 
     <iframe
-        id="tab-avisia" 
+        id="tab-avisia"
         class="tab-panel w-100 h-100 border-0"
         src="{% url 'plugin:cabal:avisia' %}"
         loading="lazy">
     </iframe>
 
     <iframe
-        id="tab-dewey" 
+        id="tab-dewey"
         class="tab-panel w-100 h-100 border-0"
         src="{% url 'plugin:cabal:dewey' %}"
+        loading="lazy">
+    </iframe>
+
+    <iframe
+        id="tab-quantify"
+        class="tab-panel w-100 h-100 border-0"
+        src="{% url 'plugin:cabal:quantify' %}"
         loading="lazy">
     </iframe>
 </main>
