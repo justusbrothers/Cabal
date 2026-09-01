@@ -2,16 +2,16 @@
 
 import io
 import json
-import pandas as pd
 
+import pandas as pd
 from django.db import connection
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.utils.decorators import method_decorator
 from django.views import View
-from django.views.decorators.http import require_http_methods
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
 
 
 def _ensure_db_tables():
@@ -74,7 +74,7 @@ def upload_customers(request):
                     """
                     INSERT INTO buyers (buyer_name, state, country, last_transaction)
                     VALUES (%s, %s, %s, %s)
-                    ON CONFLICT (buyer_name) DO UPDATE 
+                    ON CONFLICT (buyer_name) DO UPDATE
                     SET state = EXCLUDED.state,
                         country = EXCLUDED.country,
                         last_transaction = EXCLUDED.last_transaction;
