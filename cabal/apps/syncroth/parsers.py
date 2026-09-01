@@ -1,11 +1,11 @@
 # cabal/apps/syncroth/parsers.py
 
-import logging
 import csv
 import io
+import logging
 import re
 from datetime import datetime
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 
 from cabal.utils import normalize_title_trailing_the
 

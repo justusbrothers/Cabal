@@ -3,8 +3,8 @@
 from plugin import InvenTreePlugin
 from plugin.mixins import UrlsMixin
 
-from .urls import urlpatterns
 from . import PLUGIN_VERSION
+from .urls import urlpatterns
 
 
 class Cabal(UrlsMixin, InvenTreePlugin):

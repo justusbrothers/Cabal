@@ -1,13 +1,12 @@
 # /plugins/Cabal/cabal/apps/vanguard/helpers.py
 
-from collections import Counter
-import logging
 import json
+import logging
 import re
-from datetime import datetime, date
+from collections import Counter
+from datetime import date, datetime
 
-from django.db.models import Sum, Q
-
+from django.db.models import Q, Sum
 from part.models import Part
 
 logger = logging.getLogger("inventree")
@@ -613,7 +612,7 @@ class VanguardParser:
         except ImportError:
             Part = None
 
-        for idx, item in enumerate(sub_pulls_raw):
+        for item in enumerate(sub_pulls_raw):
             if isinstance(item, str):
                 item = item.strip()
                 if not item:

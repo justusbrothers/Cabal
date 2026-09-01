@@ -1,26 +1,26 @@
 # /plugins/Cabal/cabal/urls.py
 
 from django.urls import path
+from django.views.generic import TemplateView
 
 from .apps import (
-    AttachPartImageView,
+    AttachPartImage,
     Avisia,
+    Cerebro,
     Dewey,
     Forge,
-    Cerebro,
-    Syncroth,
     LookupPacksApiView,
     LookupSinceApiView,
     Nexus,
     Quantify,
     Spectacle,
+    Syncroth,
     Vanguard,
     WeeklyReportPDFView,
     clear_customers,
     get_customers,
     upload_customers,
 )
-from django.views.generic import TemplateView
 
 app_name = "cabal"
 
@@ -31,7 +31,7 @@ urlpatterns = [
         "api/avisia/customers/upload/", upload_customers, name="avisia-upload-customers"
     ),
     path("api/avisia/customers/clear/", clear_customers, name="avisia-clear-customers"),
-    path("attach-image/", AttachPartImageView.as_view(), name="attach-image"),
+    path("attach-image/", AttachPartImage.as_view(), name="attach-image"),
     path("avisia/", Avisia.as_view(), name="avisia"),
     path("cerebro/", Cerebro, name="cerebro"),
     path("dewey/", Dewey.as_view(), name="dewey"),

@@ -9,12 +9,6 @@ from django.shortcuts import render
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.clickjacking import xframe_options_sameorigin
-
-from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from rest_framework.views import APIView
-
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
@@ -27,11 +21,15 @@ from reportlab.platypus import (
     Table,
     TableStyle,
 )
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from cabal.utils import clean_text
 
 from .flowables import PrintableCheckbox
 from .helpers import VanguardParser
-
-from cabal.utils import clean_text
 
 
 class LookupPacksApiView(APIView):

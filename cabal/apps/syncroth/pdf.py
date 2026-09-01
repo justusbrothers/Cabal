@@ -2,25 +2,25 @@
 
 import io
 import re
-import socket
 import urllib.request
 
 from django.http import HttpResponse
 from django.views.generic import View
-
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.platypus import (
     Flowable,
     HRFlowable,
-    Image as RLImage,
     KeepTogether,
     Paragraph,
     SimpleDocTemplate,
     Spacer,
     Table,
     TableStyle,
+)
+from reportlab.platypus import (
+    Image as RLImage,
 )
 
 
@@ -173,12 +173,7 @@ class WeeklyReportPDFView(View):
                 return RLImage(img_data, width=width, height=height)
             else:
                 return RLImage(img_source, width=width, height=height)
-        except (
-            urllib.error.URLError,
-            urllib.error.HTTPError,
-            socket.timeout,
-            Exception,
-        ):
+        except (TimeoutError, urllib.error.URLError, urllib.error.HTTPError, Exception):
             return ""
 
     def get(self, request, *args, **kwargs):
@@ -361,7 +356,7 @@ class WeeklyReportPDFView(View):
                 # Pack Header Line
                 pack_block.append(
                     Paragraph(
-                        f"<b>PACK #{pack_count}: {title}</b>",  #  &nbsp;&nbsp;|&nbsp;&nbsp; <code>{sku}</code>
+                        f"<b>PACK #{pack_count}: {title}</b>",  # &nbsp;&nbsp;|&nbsp;&nbsp; <code>{sku}</code>
                         pack_header_style,
                     )
                 )

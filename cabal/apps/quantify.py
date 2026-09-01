@@ -9,10 +9,8 @@ from django.shortcuts import render
 from django.utils.decorators import method_decorator
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.generic import View
-
-from rest_framework.permissions import IsAuthenticated
-
 from part.models import Part
+from rest_framework.permissions import IsAuthenticated
 from stock.models import StockItem
 
 logger = logging.getLogger("inventree")

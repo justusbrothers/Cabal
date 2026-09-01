@@ -1,9 +1,10 @@
 import logging
+
+from django.db.models import Q
 from django.shortcuts import render
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.clickjacking import xframe_options_sameorigin
-from django.db.models import Q
 from part.models import Part
 
 logger = logging.getLogger("inventree")
@@ -11,7 +12,9 @@ logger = logging.getLogger("inventree")
 
 @method_decorator(xframe_options_sameorigin, name="dispatch")
 class Dewey(View):
-    """Renders a static HTML template view for searching book IPNs via a list of terms."""
+    """
+    Renders a static HTML template view for searching book IPNs via a list of terms.
+    """
 
     def get(self, request, *args, **kwargs):
         return render(
@@ -29,7 +32,8 @@ class Dewey(View):
 
         if search_terms:
             logger.info(
-                f"[Dewey] Triggered batch search for {len(search_terms)} term(s) by user: {request.user}"
+                f"[Dewey] Triggered batch search for {len(search_terms)} "
+                f"term(s) by user: {request.user}"
             )
 
             try:
@@ -58,7 +62,8 @@ class Dewey(View):
                                 part_params[param.template.name] = param.data
                     except Exception as param_err:
                         logger.warning(
-                            f"[Dewey] Could not fetch parameters for part {part.pk}: {param_err}"
+                            f"[Dewey] Could not fetch parameters for part "
+                            f"{part.pk}: {param_err}"
                         )
 
                     stock_qty = 0
@@ -82,7 +87,10 @@ class Dewey(View):
                         "upc": part_params.get("UPC", "N/A"),
                     })
 
-                debug_message = f"Query executed successfully for {len(search_terms)} term(s). Found {len(results)} matching part(s)."
+                debug_message = (
+                    f"Query executed successfully for {len(search_terms)}"
+                    f" term(s). Found {len(results)} matching part(s)."
+                )
 
             except Exception as e:
                 logger.error(f"[Dewey] InvenTree query failed: {e}", exc_info=True)
