@@ -74,8 +74,8 @@ known-first-party = ["cabal"]
 
 [tool.mypy]
 python_version = "3.11"
+files = ["cabal"]
+explicit_package_bases = true
 ignore_missing_imports = true
 warn_redundant_casts = true
 warn_unused_ignores = true
-
-src = ["cabal"]

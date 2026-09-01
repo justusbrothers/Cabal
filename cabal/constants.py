@@ -1,10 +1,23 @@
-# cabal/constants.py
+# /plugins/Cabal/cabal/constants.py
+
+from typing import Any, TypedDict
+
+
+class PublisherEntry(TypedDict):
+    name: str
+    code: str
+    prefixes: list[str]
+    catId: int
+    catLabel: str
+    locId: int
+    locLabel: str
+
 
 # -----------------------------------------------------------------
 # 1. THE SINGLE SOURCE OF TRUTH REGISTRY
 # -----------------------------------------------------------------
 # Add, edit, or remove publishers entirely inside this list.
-PUBLISHER_REGISTRY = [
+PUBLISHER_REGISTRY: list[PublisherEntry] = [
     {
         "name": "Abstract Studio",
         "code": "ABS",
@@ -266,23 +279,20 @@ PUBLISHER_REGISTRY = [
         "locId": 84,
         "locLabel": "Vertigo Storage (84)",
     },
-    # {"name": "New Publisher", "code": "NEW", "prefixes": ["123"], "catId": 22, "catLabel": "Indie (IND)", "locId": 82, "locLabel": "Indie / Studio Boxes (82)"},
 ]
 
 # -----------------------------------------------------------------
 # 2. RUNTIME COMPILATION ENGINE
 # -----------------------------------------------------------------
-# These initialize empty containers and automatically populate them on load.
-PUBLISHER_CODES = {}
-PUBLISHER_UPC_PREFIXES = {}
-PUBLISHER_PART_CATEGORIES = {}
+PUBLISHER_CODES: dict[str, str] = {}
+PUBLISHER_UPC_PREFIXES: dict[str, str] = {}
+PUBLISHER_PART_CATEGORIES: dict[str, int] = {}
 
-CATEGORIES_LIST = []
-LOCATIONS_LIST = []
+CATEGORIES_LIST: list[dict[str, Any]] = []
+LOCATIONS_LIST: list[dict[str, Any]] = []
 
-# Tracker sets to ensure we don't push duplicate dictionaries into our dropdown list selections
-seen_categories = set()
-seen_locations = set()
+seen_categories: set[int] = set()
+seen_locations: set[int] = set()
 
 for pub in PUBLISHER_REGISTRY:
     # 1. Map string name directly to standard 3-4 letter short-code
@@ -305,5 +315,5 @@ for pub in PUBLISHER_REGISTRY:
         LOCATIONS_LIST.append({"id": pub["locId"], "name": pub["locLabel"]})
 
 # Sort both dynamic dropdown layouts cleanly by their label names
-CATEGORIES_LIST.sort(key=lambda x: x["name"])
-LOCATIONS_LIST.sort(key=lambda x: x["name"])
+CATEGORIES_LIST.sort(key=lambda x: str(x["name"]))
+LOCATIONS_LIST.sort(key=lambda x: str(x["name"]))
