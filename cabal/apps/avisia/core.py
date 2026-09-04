@@ -1,4 +1,4 @@
-# /plugins/Cabal/cabal/apps/avisia/avisia.py
+# /plugins/Cabal/cabal/apps/avisia/core.py
 
 import io
 import json
