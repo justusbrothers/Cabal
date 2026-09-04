@@ -120,7 +120,7 @@ function renderRecommendedPacks(packs) {
     let html = '';
     packs.forEach((pack, index) => {
         const counter = index + 1;
-        const sku = pack.recommended_pack_sku || pack.sku || '';
+        const ipn = pack.recommended_pack_ipn || pack.ipn || '';
         const title = pack.title || '';
         const isChecked = !pack.has_missing_cover;
         const maxBuild = pack.max_buildable_packs || 1;
@@ -142,13 +142,13 @@ function renderRecommendedPacks(packs) {
                        class="form-check-input flex-shrink-0 recommendation-checkbox pack-checkbox fs-4"
                        id="pack_${counter}"
                        name="selected_packs"
-                       value="${sku}"
+                       value="${ipn}"
                        ${isChecked ? 'checked' : ''}>
 
                 <div class="d-flex flex-wrap w-100 justify-content-between align-items-center gap-2">
                     <div>
                         <h6 class="mb-1 fw-bold">
-                            ${sku} 
+                            ${ipn} 
                             <span class="text-muted fw-normal ms-2">— ${title}</span>
                         </h6>
                         <div class="d-flex gap-1 mt-2">
@@ -160,7 +160,7 @@ function renderRecommendedPacks(packs) {
                         <label for="pack_qty_${counter}" class="small text-muted me-2 mb-0">Build Qty:</label>
                         <input type="number"
                                id="pack_qty_${counter}"
-                               name="pack_qty_${sku}"
+                               name="pack_qty_${ipn}"
                                class="form-control form-control-sm text-center fw-bold me-3 qty-input"
                                style="width: 70px;"
                                value="1"
@@ -225,18 +225,18 @@ document.addEventListener('DOMContentLoaded', function() {
             let linesMap = new Map();
             packsTextarea.value.split('\n').map(l => l.trim()).filter(Boolean).forEach(line => {
                 const parts = line.split(/\s+x\d+$/);
-                const baseSku = parts[0].trim();
-                linesMap.set(baseSku, line);
+                const baseIpn = parts[0].trim();
+                linesMap.set(baseIpn, line);
             });
             
             checkboxes.forEach(checkbox => {
-                const sku = checkbox.value;
+                const ipn = checkbox.value;
                 const parent = checkbox.closest('label');
                 const qtyInput = parent.querySelector('input[type="number"]');
                 const qty = qtyInput ? qtyInput.value : '1';
                 
-                const entry = parseInt(qty) > 1 ? `${sku}x${qty}` : sku;
-                linesMap.set(sku, entry);
+                const entry = parseInt(qty) > 1 ? `${ipn}x${qty}` : ipn;
+                linesMap.set(ipn, entry);
             });
 
             packsTextarea.value = Array.from(linesMap.values()).join('\n');

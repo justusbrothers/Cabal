@@ -7,20 +7,20 @@
 //         return;
 //     }
 
-//     const selectedSkus = Array.from(selectedCheckboxes).map(cb => cb.value);
+//     const selectedIpns = Array.from(selectedCheckboxes).map(cb => cb.value);
 //     const packsTextarea = document.getElementById('packs');
 
 //     if (packsTextarea) {
 //         // Get existing text and trim extra whitespace
 //         const currentContent = packsTextarea.value.trim();
-//         const newSkusText = selectedSkus.join('\n');
+//         const newIpnsText = selectedIpns.join('\n');
 
 //         if (currentContent.length > 0) {
-//             // Append new SKUs on a new line if textarea already has text
-//             packsTextarea.value = `${currentContent}\n${newSkusText}`;
+//             // Append new IPNs on a new line if textarea already has text
+//             packsTextarea.value = `${currentContent}\n${newIpnsText}`;
 //         } else {
 //             // Otherwise, set it directly
-//             packsTextarea.value = newSkusText;
+//             packsTextarea.value = newIpnsText;
 //         }
 
 //         // Optional: Smoothly scroll down to the textarea so the user sees the update

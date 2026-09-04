@@ -126,14 +126,14 @@ class Vanguard(View):
                         ipn_list=combined_ipns, min_stock=1
                     )
 
-                    # Automatically append newly recommended pack SKUs to the packs textarea
+                    # Automatically append newly recommended pack IPNs to the packs textarea
                     if recommended_packs:
                         existing_packs = VanguardParser.parse_textarea_input(packs_raw)
-                        new_pack_skus = [
-                            rec["recommended_pack_sku"] for rec in recommended_packs
+                        new_pack_ipns = [
+                            rec["recommended_pack_ipn"] for rec in recommended_packs
                         ]
                         combined_packs = list(
-                            dict.fromkeys(existing_packs + new_pack_skus)
+                            dict.fromkeys(existing_packs + new_pack_ipns)
                         )
                         packs_raw = "\n".join(combined_packs)
 
@@ -249,7 +249,7 @@ class Vanguard(View):
             [
                 Paragraph("<b>Pull</b>", body_style),
                 Paragraph("<b>Ratio</b>", body_style),
-                Paragraph("<b>Title / SKU</b>", body_style),
+                Paragraph("<b>Title / IPN</b>", body_style),
             ]
         ]
         ratio_regex = re.compile(r"(\b1[:/]\d+\b|INCENTIVE|RATIO)", re.IGNORECASE)
@@ -258,8 +258,8 @@ class Vanguard(View):
         story.append(Paragraph("1. Incentive Ratio Books to Pull", h2_style))
 
         for item in items:
-            title, sku, _ = VanguardParser.get_item_data(item)
-            match = ratio_regex.search(title) or ratio_regex.search(sku)
+            title, ipn, _ = VanguardParser.get_item_data(item)
+            match = ratio_regex.search(title) or ratio_regex.search(ipn)
 
             if match:
                 ratio_count += 1
@@ -293,7 +293,7 @@ class Vanguard(View):
         story.append(Paragraph("2. Packs to Assemble", h2_style))
 
         for item in items:
-            title, sku, is_pack = VanguardParser.get_item_data(item)
+            title, ipn, is_pack = VanguardParser.get_item_data(item)
 
             if is_pack:
                 pack_count += 1

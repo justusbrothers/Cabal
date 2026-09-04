@@ -97,8 +97,13 @@ class VanguardParser:
     @staticmethod
     def get_cover_a_ipn(pack_ipn):
         clean_ipn = pack_ipn.strip()
-        base_ipn = re.sub(r"[-_]PACK[A-Z]*$", "", clean_ipn, flags=re.IGNORECASE)
-        base_ipn = re.sub(r"_(?:PACK|SET|BOX)-\d+$", "", base_ipn, flags=re.IGNORECASE)
+        logger.info(f"🔍 [VanguardParser:get_cover_a_ipn] clean_ipn: {clean_ipn}")
+
+        base_ipn = re.sub(
+            r"[-_]PACK[A-Z]*(?:[xX]\d+)?$", "", clean_ipn, flags=re.IGNORECASE
+        )
+        logger.info(f"🔍 [VanguardParser:get_cover_a_ipn] base_ipn: {base_ipn}")
+
         return base_ipn
 
     @classmethod
@@ -138,11 +143,11 @@ class VanguardParser:
                 components.append((multiplier, c))
             return components
 
-        sku_pack_match = re.search(
+        ipn_pack_match = re.search(
             r"(?:PACK|SET|COVERS?)(?:-|\s+)?([A-Z]{2,10})\b", text_upper
         )
-        if sku_pack_match:
-            letters = list(sku_pack_match.group(1))
+        if ipn_pack_match:
+            letters = list(ipn_pack_match.group(1))
             for letter in letters:
                 components.append((multiplier, letter))
             return components
@@ -205,10 +210,11 @@ class VanguardParser:
             formatted_components = [f"{qty}x {cls.get_inventree_part_name(line)}"]
 
         return {
-            "SKU": line,
+            "IPN": line,
             "Title": pack_title,
             "Description": line,
             "quantity": qty,
+            "is_pack": True,
             "components": formatted_components,
         }
 
@@ -224,10 +230,10 @@ class VanguardParser:
             title = (
                 item.get("Title") or item.get("name") or item.get("Description") or ""
             )
-            sku = item.get("SKU") or item.get("IPN") or item.get("part_ipn") or ""
+            ipn = item.get("IPN") or item.get("part_ipn") or ""
             is_pack = (
                 "components" in item
-                or "PACK" in sku.upper()
+                or "PACK" in ipn.upper()
                 or "PACK" in title.upper()
                 or "SET" in title.upper()
             )
@@ -238,15 +244,15 @@ class VanguardParser:
                 or getattr(part, "title", "")
                 or getattr(part, "description", "")
             )
-            sku = getattr(part, "IPN", "") or getattr(part, "SKU", "")
+            ipn = getattr(part, "IPN", "")
             is_pack = (
                 getattr(part, "_is_pack_inheritance", False)
-                or "PACK" in sku.upper()
+                or "PACK" in ipn.upper()
                 or "PACK" in title.upper()
                 or "SET" in title.upper()
             )
 
-        return title, sku, is_pack
+        return title, ipn, is_pack
 
     @staticmethod
     def get_pack_components(item):
@@ -452,12 +458,12 @@ class VanguardParser:
                     )
 
             cover_letters_str = "".join(available_covers)
-            pack_sku = f"{base_ipn}-PACK{cover_letters_str}"
+            pack_ipn = f"{base_ipn}-PACK{cover_letters_str}"
             base_title = cls.get_inventree_part_name(base_ipn)
             has_missing_cover = any(not cover["has_stock"] for cover in cover_details)
 
             recommendations.append({
-                "recommended_pack_sku": pack_sku,
+                "recommended_pack_ipn": pack_ipn,
                 "title": f"{base_title} Set ({', '.join(available_covers)})",
                 "base_ipn": base_ipn,
                 "available_covers": available_covers,
@@ -474,7 +480,7 @@ class VanguardParser:
 
     @staticmethod
     def get_inventree_part_obj(ipn):
-        """Retrieve the InvenTree Part object by its IPN (SKU/part number) or pk."""
+        """Retrieve the InvenTree Part object by its IPN (part number) or pk."""
         if not ipn:
             return None
         try:

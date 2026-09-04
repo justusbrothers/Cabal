@@ -40,7 +40,7 @@
                 <!-- IPN List & Filter/Sort Toolbar -->
                 <div class="mb-4">
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <label for="ipn_list" class="form-label fw-bold mb-0">IPN List / Single SKUs</label>
+                        <label for="ipn_list" class="form-label fw-bold mb-0">IPN List / Single IPNs</label>
                         <div class="d-flex gap-2">
                             <button type="button" id="btn-sort-ipn" class="btn btn-outline-secondary btn-sm" title="Sort lines alphabetically (A-Z)">
                                 <i class="bi bi-sort-alpha-down"></i> Sort A-Z
@@ -69,7 +69,7 @@
                         </div>
                     </div>
 
-                    <textarea id="ipn_list" name="ipn_list" class="form-control font-monospace" rows="4" placeholder="Enter IPNs or SKUs, separated by commas or newlines...">{{ ipn_list }}</textarea>
+                    <textarea id="ipn_list" name="ipn_list" class="form-control font-monospace" rows="4" placeholder="Enter IPNs, separated by commas or newlines...">{{ ipn_list }}</textarea>
 
                     <div class="form-text text-muted my-0">List individual item IPNs to inspect for incentive ratio variants and single pulls.</div>
                 </div>
@@ -108,13 +108,13 @@
                                            class="form-check-input flex-shrink-0 recommendation-checkbox pack-checkbox fs-4" 
                                            id="pack_{{ forloop.counter }}" 
                                            name="selected_packs" 
-                                           value="{{ pack.recommended_pack_sku }}"
+                                           value="{{ pack.recommended_pack_ipn }}"
                                            {% if not pack.has_missing_cover %}checked{% endif %}>
 
                                     <div class="d-flex flex-wrap w-100 justify-content-between align-items-center gap-2">
                                         <div>
                                             <h6 class="mb-1 fw-bold text-white">
-                                                {{ pack.recommended_pack_sku }} 
+                                                {{ pack.recommended_pack_ipn }} 
                                                 <span class="text-muted fw-normal ms-2">— {{ pack.title }}</span>
                                             </h6>
                                             <div class="d-flex gap-1 mt-2">
@@ -130,7 +130,7 @@
                                             <label for="pack_qty_{{ forloop.counter }}" class="small text-muted me-2 mb-0">Build Qty:</label>
                                             <input type="number" 
                                                    id="pack_qty_{{ forloop.counter }}" 
-                                                   name="pack_qty_{{ pack.recommended_pack_sku }}" 
+                                                   name="pack_qty_{{ pack.recommended_pack_ipn }}" 
                                                    class="form-control form-control-sm text-center fw-bold me-3" 
                                                    style="width: 70px;"
                                                    value="1" 
@@ -156,8 +156,8 @@
                 <!-- Custom Pack Setup -->
                 <div class="mb-4">
                     <label for="packs" class="form-label fw-bold">Manual Pack Definition / Custom List</label>
-                    <textarea id="packs" name="packs" class="form-control font-monospace" rows="3" placeholder="Enter Pack SKUs or definitions...">{{ packs }}</textarea>
-                    <div class="form-text text-muted">List multi-issue pack SKUs to auto-expand cover breakdowns and assembly checklists.</div>
+                    <textarea id="packs" name="packs" class="form-control font-monospace" rows="3" placeholder="Enter Pack IPNs or definitions...">{{ packs }}</textarea>
+                    <div class="form-text text-muted">List multi-issue pack IPNs to auto-expand cover breakdowns and assembly checklists.</div>
                 </div>
 
                 <!-- Actions -->
