@@ -163,7 +163,14 @@
                 <!-- Actions -->
                 <div class="d-flex flex-wrap gap-2 pt-3 border-top border-secondary">
                     <button type="submit" name="action" value="generate_pdf" class="btn btn-primary px-4">Generate PDF Strategy Report</button>
+                    <button type="submit" name="action" value="view_html" class="btn btn-secondary">
+                        View as Web Page (HTML)
+                    </button>
                     <button type="submit" name="action" value="save_session" class="btn btn-secondary px-4">Save Parameters</button>
+                    <button type="button" class="btn btn-info px-4" onclick="sendToSyncroth()">
+                        <i class="bi bi-arrow-repeat"></i> Send to Syncroth
+                    </button>
+
                     <button type="submit" name="action" value="clear_all" class="btn btn-outline-danger ms-md-auto px-4" id="vanguard-clear-all">
                         Clear All
                     </button>
@@ -179,4 +186,42 @@
 <script src="{% static 'plugins/cabal/cabal/js/vanguard/script.js' %}"></script>
 <script src="{% static 'plugins/cabal/cabal/js/vanguard/textarea.js' %}"></script>
 <script src="{% static 'plugins/cabal/cabal/js/vanguard/recommendations.js' %}"></script>
+<script>
+function sendToSyncroth() {
+    // 2. Retrieve CSRF token from the existing page form
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+
+    // 3. Create a temporary hidden form
+    const form = document.createElement('form');
+          form.method = 'POST';
+          form.action = '/plugin/cabal/syncroth/';
+
+    // 4. Key-Value mapping for payload
+    const payload = {
+        'csrfmiddlewaretoken': csrfToken,
+        'export_action': 'download_csv',
+        'format': 'csv',
+        'ipn_list': ipnTextarea,
+        'sub_box_pulls': subBoxPulls,
+        'packs': packs,
+        'parser': 'whatnot',
+        'whatnot_listing_type': 'Auction'
+    };
+
+    // 5. Append inputs to form
+    for (const [key, value] of Object.entries(payload)) {
+        const input = document.createElement('input');
+              input.type = 'hidden';
+              input.name = key;
+              input.value = value;
+
+        form.appendChild(input);
+    }
+
+    // 6. Append form to body and submit
+    document.body.appendChild(form);
+
+    form.submit();
+}
+</script>
 {% endblock %}
