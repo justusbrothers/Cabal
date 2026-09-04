@@ -30,17 +30,17 @@ class Nexus(View):
 
         if csv_file:
             try:
-                # logger.info(
-                #     f"[Nexus] Received file upload: {getattr(csv_file, 'name', 'unknown')} (Size: {csv_file.size} bytes)"
-                # )
+                logger.info(
+                    f"[Nexus] Received file upload: {getattr(csv_file, 'name', 'unknown')} (Size: {csv_file.size} bytes)"
+                )
 
                 df, auto_suffix, is_penguin = process_csv_file(csv_file)
                 context["total_rows"] = len(df)
                 context["is_penguin"] = is_penguin
 
-                # logger.debug(
-                #     f"[Nexus] Post-processing complete. Final DataFrame rows: {len(df)}, Vendor Type: {'Penguin' if is_penguin else 'Lunar'}"
-                # )
+                logger.debug(
+                    f"[Nexus] Post-processing complete. Final DataFrame rows: {len(df)}, Vendor Type: {'Penguin' if is_penguin else 'Lunar'}"
+                )
 
                 # --- Filename Date Suffix Selector ---
                 raw_suffix = request.POST.get("file_suffix", "").strip()
@@ -96,9 +96,10 @@ class Nexus(View):
                 if missing:
                     import_message += f" Found {len(missing)} missing identifiers."
                 context["import_message"] = import_message
-                # logger.info(
-                #     f"[Nexus] Successfully rendered page context. {import_message}"
-                # )
+
+                logger.info(
+                    f"[Nexus] Successfully rendered page context. {import_message}"
+                )
 
             except Exception as e:
                 logger.exception(
