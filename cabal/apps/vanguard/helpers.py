@@ -9,7 +9,8 @@ from datetime import date, datetime
 from django.db.models import Q, Sum
 from part.models import Part
 
-logger = logging.getLogger("inventree")
+logger = logging.getLogger("Vanguard")
+logger.propagate = False
 
 
 try:
@@ -575,19 +576,23 @@ class VanguardParser:
 
     @staticmethod
     def calculate_sub_totals(sub_pulls_raw):
+        logger.info(
+            f"🔍 [VanguardParser:calculate_sub_totals] init - type: {type(sub_pulls_raw)}, sub_pulls_raw: {str(sub_pulls_raw)[:200]}"
+        )
+
         breakdown = {}
         customer_totals = {}
         grand_total = 0.0
-
-        logger.info(
-            f"🔍 [VanguardParser] calculate_sub_totals received type: {type(sub_pulls_raw)}, value: {str(sub_pulls_raw)[:200]}"
-        )
 
         if not sub_pulls_raw:
             return {"breakdown": {}, "customer_totals": {}, "grand_total": 0.0}
 
         if isinstance(sub_pulls_raw, str):
             stripped = sub_pulls_raw.strip()
+            logger.info(
+                f"🔍 [VanguardParser:calculate_sub_totals] stripped: {stripped}"
+            )
+
             if stripped.startswith("[") or stripped.startswith("{"):
                 try:
                     sub_pulls_raw = json.loads(sub_pulls_raw)
@@ -606,27 +611,55 @@ class VanguardParser:
         if not isinstance(sub_pulls_raw, (list, tuple)):
             sub_pulls_raw = []
 
+        logger.info(
+            f"🔍 [VanguardParser:calculate_sub_totals] sub_pulls_raw after ifs: {sub_pulls_raw}"
+        )
+
         # Import Part model locally to avoid circular dependencies
         try:
             from part.models import Part
         except ImportError:
             Part = None
+        logger.info(f"🔍 [VanguardParser:calculate_sub_totals] Part: {Part}")
 
-        for item in enumerate(sub_pulls_raw):
+        for item in sub_pulls_raw:
+            logger.info(
+                f"🔍 [VanguardParser:calculate_sub_totals] if isinstance [item: {item} | type: {type(item)} | isinstance: {isinstance(item, str)}]"
+            )
             if isinstance(item, str):
                 item = item.strip()
+                logger.info(
+                    f"🔍 [VanguardParser:calculate_sub_totals] part loop item: {item}"
+                )
+
                 if not item:
                     continue
 
                 if ":" in item:
                     parts = item.split(":", 1)
+                    logger.info(
+                        f"🔍 [VanguardParser:calculate_sub_totals] if parts: {parts}"
+                    )
+
                     customer_name = parts[0].strip()
+                    logger.info(
+                        f"🔍 [VanguardParser:calculate_sub_totals] if customer_name: {customer_name}"
+                    )
+
                     ipn_val = parts[1].strip()
                 else:
                     customer_name = "Unknown"
+                    logger.info(
+                        f"🔍 [VanguardParser:calculate_sub_totals] else customer_name: {customer_name}"
+                    )
+
                     ipn_val = item
 
                 title_val = ipn_val
+                logger.info(
+                    f"🔍 [VanguardParser:calculate_sub_totals] title_val: {title_val}"
+                )
+
                 retail_val = 0.0
 
                 if Part:
@@ -635,15 +668,22 @@ class VanguardParser:
                             Part.objects.filter(IPN=ipn_val).first()
                             or Part.objects.filter(name=ipn_val).first()
                         )
+                        logger.info(
+                            f"🔍 [VanguardParser:calculate_sub_totals] part_obj: {part_obj}"
+                        )
+
                         if part_obj:
                             title_val = getattr(part_obj, "name", ipn_val)
+                            logger.info(
+                                f"🔍 [VanguardParser:calculate_sub_totals] title_val: {title_val}"
+                            )
 
                             # 🔎 DEBUG: Inspect available attributes and pricing methods on part_obj
                             logger.info(
-                                f"🔎 [VanguardParser DEBUG] Found Part object for IPN '{ipn_val}': ID={part_obj.pk}, Name={part_obj.name}"
+                                f"🔎 [VanguardParser:calculate_sub_totals] Found Part object for IPN '{ipn_val}': ID={part_obj.pk}, Name={part_obj.name}"
                             )
                             logger.info(
-                                f"🔎 [VanguardParser DEBUG] Part attributes/methods: {[m for m in dir(part_obj) if 'price' in m or 'sale' in m or 'pricing' in m]}"
+                                f"🔎 [VanguardParser:calculate_sub_totals] Part attributes/methods: {[m for m in dir(part_obj) if 'price' in m or 'sale' in m or 'pricing' in m]}"
                             )
 
                             # Try multiple potential pricing pathways common in InvenTree or custom plugins
@@ -651,7 +691,7 @@ class VanguardParser:
                                 try:
                                     sale_price_obj = part_obj.get_price(1)
                                     logger.info(
-                                        f"🔎 [VanguardParser DEBUG] get_price() returned: {sale_price_obj} (type: {type(sale_price_obj)})"
+                                        f"🔎 [VanguardParser:calculate_sub_totals] get_price() returned: {sale_price_obj} (type: {type(sale_price_obj)})"
                                     )
 
                                     if sale_price_obj:

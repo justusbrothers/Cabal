@@ -1,7 +1,9 @@
-# /plugins/Cabal/cabal/apps/vanguard/vanguard.py
+# /plugins/Cabal/cabal/apps/vanguard/core.py
 
 import io
+import logging
 import re
+from pathlib import Path
 
 from django.contrib import messages
 from django.http import HttpResponse
@@ -11,7 +13,6 @@ from django.views import View
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.platypus import (
     HRFlowable,
     KeepTogether,
@@ -21,89 +22,34 @@ from reportlab.platypus import (
     Table,
     TableStyle,
 )
-from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from rest_framework.views import APIView
 
 from cabal.utils import clean_text
 
 from .flowables import PrintableCheckbox
 from .helpers import VanguardParser
+from .styles import body_style, h1_style, h2_style, h3_style, sub_hdr_style
+
+logger = logging.getLogger("Vanguard")
+logger.propagate = False
 
 
-class LookupPacksApiView(APIView):
-    """API endpoint to look up IPNs by date and recommend available cover packs."""
+if not logger.handlers:
+    # Save log file alongside your python files
+    log_file = Path(__file__).parent / "vanguard.log"
+    file_handler = logging.FileHandler(log_file)
 
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request, *args, **kwargs):
-        ipn_raw = request.data.get("ipn_list", "")
-        sub_ipn_raw = request.data.get("sub_ipns", "")
-        existing_lines = VanguardParser.parse_textarea_input(ipn_raw)
-        recommended_ipn_list = list(dict.fromkeys(existing_lines))
-        updated_ipn_text = "\n".join(recommended_ipn_list)
-
-        recommended_packs = VanguardParser.recommend_packs_from_ipns(
-            ipn_list=recommended_ipn_list, min_stock=2, sub_ipns=sub_ipn_raw
-        )
-
-        return Response(
-            {
-                "status": "success",
-                "message": f"Found {len(recommended_packs)} pack recommendation(s).",
-                "ipn_list": updated_ipn_text,
-                "recommended_packs": recommended_packs,
-                "_debug": {
-                    "received_sub_ipns_raw": sub_ipn_raw,
-                },
-            },
-            status=status.HTTP_200_OK,
-        )
-
-
-class LookupSinceApiView(APIView):
-    """API endpoint to look up IPNs by date and result from 'added since' value."""
-
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request, *args, **kwargs):
-        lookup_date = request.data.get("lookup_date", "")
-        added_since = request.data.get("added_since", "")
-
-        if not lookup_date:
-            return Response(
-                {"status": "error", "message": "Please select a date first."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Retrieve IPNs by the selected lookup date param
-        date_ipns = VanguardParser.get_ipns_by_param_date(lookup_date)
-
-        # Filter by added_since date if provided
-        filtered_ipns = []
-        if added_since:
-            filtered_ipns = VanguardParser.filter_ipns_by_creation_date(
-                date_ipns, added_since
-            )
-        else:
-            filtered_ipns = date_ipns
-
-        return Response(
-            {
-                "status": "success",
-                "lookup_date": lookup_date,
-                "added_since": added_since,
-                "ipns": filtered_ipns,
-            },
-            status=status.HTTP_200_OK,
-        )
+    formatter = logging.Formatter(
+        "%(asctime)s [%(levelname)s] %(message)s", "%Y-%m-%d %H:%M:%S"
+    )
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
 
 
 @method_decorator(xframe_options_sameorigin, name="dispatch")
 class Vanguard(View):
     template_name = "vanguard/vanguard.html"
 
+    # Handle get
     def get(self, request, *args, **kwargs):
         # Retrieve context state
         context = {
@@ -115,10 +61,13 @@ class Vanguard(View):
         }
         return render(request, self.template_name, context)
 
+    # Handle post
     def post(self, request, *args, **kwargs):
+        # Get action
         action = request.POST.get("action", "generate_pdf")
+        logger.info(f"🔍 [Vanguard] Received post action: {action}")
 
-        # --- Handle Clear All Action ---
+        # Handle 'Clear All' action
         if action == "clear_all":
             for key in [
                 "active_ipn_list",
@@ -130,6 +79,10 @@ class Vanguard(View):
                 request.session.pop(key, None)
 
             messages.info(request, "All fields cleared.")
+
+            # Log catch
+            logger.info("🔍 [Vanguard] 'clear_all' caught -- Return Render")
+
             return render(
                 request,
                 self.template_name,
@@ -144,13 +97,20 @@ class Vanguard(View):
 
         # Retrieve form data
         ipn_raw = request.POST.get("ipn_list", "")
+        logger.info(f"🔍 [Vanguard] ipn_raw: {ipn_raw}")
+
         packs_raw = request.POST.get("packs", "")
+        logger.info(f"🔍 [Vanguard] packs_raw: {packs_raw}")
+
         sub_pulls_raw = request.POST.get("sub_box_pulls", "")
+        logger.info(f"🔍 [Vanguard] sub_pulls_raw: {sub_pulls_raw}")
+
         lookup_date = request.POST.get("lookup_date", "")
+        logger.info(f"🔍 [Vanguard] lookup_date: {lookup_date}")
 
         recommended_packs = []
 
-        # --- Handle Date Lookup Action ---
+        # Handle 'Date Lookup' action
         if action == "lookup_by_date":
             if not lookup_date:
                 messages.warning(request, "Please select a date first.")
@@ -194,7 +154,13 @@ class Vanguard(View):
         request.session["active_lookup_date"] = lookup_date
         request.session["active_recommended_packs"] = recommended_packs
 
+        # Handle 'Save Session' & Further 'Date Lookup' Action (further)
         if action in ["save_session", "lookup_by_date"]:
+            # Log catch
+            logger.info(
+                "🔍 [Vanguard] 'save_session' OR 'lookup_by_date' caught -- Return Render"
+            )
+
             return render(
                 request,
                 self.template_name,
@@ -207,29 +173,55 @@ class Vanguard(View):
                 },
             )
 
+        # Set more vars
         parsed_ipns = VanguardParser.parse_textarea_input(ipn_raw)
+        logger.info(f"🔍 [Vanguard] parsed_ipns: {parsed_ipns}")
+
         parsed_packs = VanguardParser.parse_textarea_input(packs_raw)
+        logger.info(f"🔍 [Vanguard] parsed_packs: {parsed_packs}")
+
         grouped_sub_pulls = VanguardParser.parse_sub_pulls_by_customer(sub_pulls_raw)
+        logger.info(f"🔍 [Vanguard] grouped_sub_pulls: {grouped_sub_pulls}")
 
         items = []
+
+        # Loop thru ipns
         for ipn in parsed_ipns:
+            # Get raw title
             raw_title = VanguardParser.get_inventree_part_name(ipn)
+            logger.info(f"🔍 [Vanguard] raw_title: {raw_title}")
 
-            # Apply global helper here!
+            # Clean title
             formatted_title = clean_text(raw_title)
+            logger.info(f"🔍 [Vanguard] formatted_title: {formatted_title}")
 
+            # Append data
             items.append({"IPN": ipn, "Title": formatted_title, "Description": ""})
 
+        # Log loop items
+        logger.info(f"🔍 [Vanguard] items after 'for ipn in parsed_ipns': {items}")
+
+        # Loop thru packs
         for pack_line in parsed_packs:
+            # Get pack item
             pack_item = VanguardParser.parse_pack_entry(pack_line)
+            logger.info(f"🔍 [Vanguard] pack_item: {pack_item}")
 
+            # If we got a pack item
             if pack_item:
-                # Clean pack titles as well
+                # Clean pack titles
                 pack_item["Title"] = clean_text(pack_item.get("Title", ""))
+                logger.info(f'🔍 [Vanguard] pack_item["Title"]: {pack_item["Title"]}')
 
+                # Append data
                 items.append(pack_item)
 
-        # --- PDF Generation Pipeline ---
+        # Log loop items
+        logger.info(
+            f"🔍 [Vanguard] items after 'for pack_line in parsed_packs:': {items}"
+        )
+
+        # PDF generation pipeline
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(
             buffer,
@@ -240,60 +232,6 @@ class Vanguard(View):
             bottomMargin=36,
         )
         story = []
-
-        styles = getSampleStyleSheet()
-
-        h1_style = ParagraphStyle(
-            "SectionHeader",
-            parent=styles["Heading1"],
-            fontName="Helvetica-Bold",
-            fontSize=17,
-            leading=21,
-            textColor=colors.HexColor("#2C3E50"),
-            spaceBefore=14,
-            spaceAfter=8,
-        )
-
-        h2_style = ParagraphStyle(
-            "SectionHeader",
-            parent=styles["Heading2"],
-            fontName="Helvetica-Bold",
-            fontSize=13,
-            leading=17,
-            textColor=colors.HexColor("#2C3E50"),
-            spaceBefore=14,
-            spaceAfter=8,
-        )
-
-        h3_style = ParagraphStyle(
-            "SectionHeader",
-            parent=styles["Heading3"],
-            fontName="Helvetica-Bold",
-            fontSize=11,
-            leading=15,
-            textColor=colors.HexColor("#2C3E50"),
-            spaceBefore=14,
-            spaceAfter=8,
-        )
-
-        sub_hdr_style = ParagraphStyle(
-            "SubHeader",
-            parent=styles["Heading3"],
-            fontName="Helvetica-Bold",
-            fontSize=10,
-            leading=13,
-            textColor=colors.HexColor("#34495E"),
-            spaceBefore=6,
-            spaceAfter=4,
-        )
-
-        body_style = ParagraphStyle(
-            "ReportBody",
-            parent=styles["Normal"],
-            fontSize=9,
-            leading=12,
-            textColor=colors.HexColor("#333333"),
-        )
 
         # Header Title
         story.append(Paragraph("SYNCROTH GAME DAY STRATEGY REPORT", h1_style))
@@ -342,6 +280,7 @@ class Vanguard(View):
                     ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                 ])
             )
+
             story.append(ratio_output_table)
         else:
             story.append(
@@ -387,18 +326,30 @@ class Vanguard(View):
                     pack_block.append(ct)
                 story.append(KeepTogether(pack_block))
 
+        # If we got 0 packs
         if pack_count == 0:
             story.append(Paragraph("No pack assemblies detected.", body_style))
 
         # Section 3: Sub Box Pull Requests with Retail Pricing & Totals
         sub_totals_data = VanguardParser.calculate_sub_totals(sub_pulls_raw)
-        grouped_sub_pulls = sub_totals_data["breakdown"]
-        customer_totals = sub_totals_data["customer_totals"]
-        grand_total = sub_totals_data["grand_total"]
-        discounted_grand_total = grand_total * 0.90
+        logger.info(f"🔍 [Vanguard] sub_totals_data: {sub_totals_data}")
 
+        grouped_sub_pulls = sub_totals_data["breakdown"]
+        logger.info(f"🔍 [Vanguard] grouped_sub_pulls: {grouped_sub_pulls}")
+
+        customer_totals = sub_totals_data["customer_totals"]
+        logger.info(f"🔍 [Vanguard] customer_totals: {customer_totals}")
+
+        grand_total = sub_totals_data["grand_total"]
+        logger.info(f"🔍 [Vanguard] grand_total: {grand_total}")
+
+        discounted_grand_total = grand_total * 0.90
+        logger.info(f"🔍 [Vanguard] discounted_grand_total: {discounted_grand_total}")
+
+        # If we got sub pulls
         if grouped_sub_pulls:
             story.append(Spacer(1, 10))
+
             story.append(
                 Paragraph(
                     f"3. Sub Box Pull Requests - Grand Total: ${grand_total:.2f} <i>(10% Off: ${discounted_grand_total:.2f})</i>",
@@ -454,10 +405,14 @@ class Vanguard(View):
                 story.append(KeepTogether(sub_block))
 
         doc.build(story)
+
         buffer.seek(0)
 
         response = HttpResponse(buffer, content_type="application/pdf")
         response["Content-Disposition"] = (
             'inline; filename="game_day_strategy_report.pdf"'
         )
+
+        logger.info("🔍 [Vanguard] ---- END LOOP ----")
+
         return response
