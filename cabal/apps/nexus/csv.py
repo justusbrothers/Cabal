@@ -97,7 +97,7 @@ def process_csv_file(csv_file):
     data_lines = []
     header_found = False
 
-    for line in enumerate(lines, 1):
+    for line in lines:
         stripped = line.strip()
         if not header_found:
             if is_penguin and (
